@@ -1,0 +1,295 @@
+{
+  "project_name": "HairMe",
+  "project_description": "AI-powered hairstyle recommendation Android app that analyzes face shape and skin tone to suggest personalized hairstyles",
+  "tech_stack": {
+    "language": "Kotlin",
+    "framework": "Jetpack Compose",
+    "architecture": "MVVM (Model-View-ViewModel)",
+    "platform": "Android",
+    "min_sdk": 24,
+    "target_sdk": 35,
+    "libraries": {
+      "networking": [
+        "Retrofit 2.9.0",
+        "OkHttp 4.12.0",
+        "Gson 2.10.1"
+      ],
+      "async": [
+        "Kotlinx Coroutines 1.8.0"
+      ],
+      "ui": [
+        "Jetpack Compose",
+        "Material3",
+        "Navigation Compose 2.8.5"
+      ],
+      "image": [
+        "Coil 2.5.0",
+        "ExifInterface 1.3.7"
+      ],
+      "database": [
+        "Room 2.6.1"
+      ],
+      "location": [
+        "Google Play Services Location 21.0.1"
+      ]
+    },
+    "backend_api": {
+      "base_url": "https://hairme.click/",
+      "protocol": "HTTPS",
+      "framework": "FastAPI (Python)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/analyze",
+          "description": "Upload face image for AI analysis",
+          "content_type": "multipart/form-data",
+          "timeout": "60s"
+        },
+        {
+          "method": "POST",
+          "path": "/api/feedback/submit",
+          "description": "Submit user feedback for ML training",
+          "content_type": "application/json"
+        }
+      ]
+    },
+    "third_party_apis": [
+      {
+        "name": "Kakao Local API",
+        "base_url": "https://dapi.kakao.com/",
+        "purpose": "Nearby salon search",
+        "authentication": "REST API Key"
+      }
+    ]
+  },
+  "features": [
+    {
+      "name": "Face Analysis",
+      "description": "Upload photo via camera or gallery, analyze face shape and skin tone using AI",
+      "screens": ["HomeScreen", "PhotoSelectionScreen", "PhotoConfirmScreen"],
+      "apis": ["/api/analyze"]
+    },
+    {
+      "name": "Hairstyle Recommendations",
+      "description": "Display top 3 AI-recommended hairstyles with matching scores and reasons",
+      "screens": ["ResultScreen"],
+      "apis": ["/api/analyze"]
+    },
+    {
+      "name": "Feedback Collection",
+      "description": "Collect user feedback (like/dislike) and Naver search clicks for ML training",
+      "screens": ["ResultScreen"],
+      "apis": ["/api/feedback/submit"],
+      "mlops": true
+    },
+    {
+      "name": "Naver Image Search",
+      "description": "Click hairstyle name to view images on Naver",
+      "screens": ["ResultScreen"],
+      "external": true
+    },
+    {
+      "name": "Salon Finder",
+      "description": "Search nearby salons using GPS and Kakao Local API, view on Kakao Map",
+      "screens": ["SalonListScreen"],
+      "apis": ["Kakao Local API /v2/local/search/keyword.json"],
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    }
+  ],
+  "user_flows": [
+    {
+      "name": "Complete Analysis Journey",
+      "steps": [
+        "Home → Start button",
+        "Photo Selection → Camera/Gallery",
+        "Photo Confirm → Analyze",
+        "Result Screen → View recommendations",
+        "Like/Dislike → Submit feedback",
+        "Find Salon → Salon List"
+      ]
+    },
+    {
+      "name": "Feedback Submission",
+      "steps": [
+        "Result Screen",
+        "Click Like/Dislike button",
+        "POST /api/feedback/submit",
+        "Success/Error toast message"
+      ],
+      "test_priority": "HIGH"
+    }
+  ],
+  "api_models": {
+    "FeedbackRequest": {
+      "face_shape": "string (e.g., 계란형)",
+      "skin_tone": "string (e.g., 쿨톤)",
+      "hairstyle_id": "integer (0-446)",
+      "user_reaction": "string (👍 or 👎)",
+      "ml_prediction": "double (0.0-1.0)",
+      "naver_clicked": "boolean",
+      "user_id": "string (default: anonymous)"
+    },
+    "FeedbackResponse": {
+      "success": "boolean",
+      "message": "string"
+    },
+    "ApiResponse": {
+      "success": "boolean",
+      "analysis_id": "integer",
+      "data": {
+        "analysis": {
+          "face_shape": "string",
+          "personal_color": "string",
+          "features": "string"
+        },
+        "recommendations": [
+          {
+            "hairstyle_id": "integer",
+            "style_name": "string",
+            "reason": "string",
+            "score": "double",
+            "image_search_url": "string"
+          }
+        ]
+      },
+      "error": "string | null",
+      "processing_time": "double",
+      "model_used": "string"
+    }
+  },
+  "test_scenarios": {
+    "feedback_api": {
+      "description": "Test feedback submission with valid data",
+      "priority": "HIGH",
+      "test_cases": [
+        {
+          "name": "Submit Like Feedback",
+          "method": "POST",
+          "endpoint": "/api/feedback/submit",
+          "request": {
+            "face_shape": "계란형",
+            "skin_tone": "쿨톤",
+            "hairstyle_id": 123,
+            "user_reaction": "👍",
+            "ml_prediction": 0.95,
+            "naver_clicked": false
+          },
+          "expected_response": {
+            "status": 200,
+            "body": {
+              "success": true,
+              "message": "피드백이 저장되었습니다"
+            }
+          }
+        },
+        {
+          "name": "Submit Dislike Feedback",
+          "method": "POST",
+          "endpoint": "/api/feedback/submit",
+          "request": {
+            "face_shape": "둥근형",
+            "skin_tone": "웜톤",
+            "hairstyle_id": 87,
+            "user_reaction": "👎",
+            "ml_prediction": 0.72,
+            "naver_clicked": false
+          },
+          "expected_response": {
+            "status": 200,
+            "body": {
+              "success": true
+            }
+          }
+        },
+        {
+          "name": "Submit with Naver Click",
+          "method": "POST",
+          "endpoint": "/api/feedback/submit",
+          "request": {
+            "face_shape": "각진형",
+            "skin_tone": "중간톤",
+            "hairstyle_id": 234,
+            "user_reaction": "👍",
+            "ml_prediction": 0.88,
+            "naver_clicked": true
+          },
+          "expected_response": {
+            "status": 200,
+            "body": {
+              "success": true
+            }
+          }
+        },
+        {
+          "name": "Invalid hairstyle_id",
+          "method": "POST",
+          "endpoint": "/api/feedback/submit",
+          "request": {
+            "face_shape": "계란형",
+            "skin_tone": "쿨톤",
+            "hairstyle_id": 9999,
+            "user_reaction": "👍",
+            "ml_prediction": 0.95
+          },
+          "expected_response": {
+            "status": 400,
+            "body": {
+              "success": false
+            }
+          }
+        },
+        {
+          "name": "Missing required fields",
+          "method": "POST",
+          "endpoint": "/api/feedback/submit",
+          "request": {
+            "hairstyle_id": 123
+          },
+          "expected_response": {
+            "status": 422
+          }
+        }
+      ]
+    }
+  },
+  "version": {
+    "versionCode": 9,
+    "versionName": "1.0.9",
+    "last_updated": "2025-11-19"
+  },
+  "code_quality": {
+    "warnings": 0,
+    "deprecated_apis": 0,
+    "unused_parameters": 0,
+    "status": "All code warnings resolved in v1.0.9"
+  },
+  "known_issues": [
+    {
+      "issue": "Feedback submission fails with '분석실패' message",
+      "cause": "hairstyle_id may be null or backend API may reject requests",
+      "fix_status": "Enhanced error logging and null handling added in v25"
+    }
+  ],
+  "recent_changes_v1.0.9": [
+    "Removed unused parameters in ResultScreen.kt (faceShape, skinTone, onFindSalonClick)",
+    "Updated deprecated Icons.Outlined.List to Icons.AutoMirrored.Outlined.List",
+    "Removed unused variables in SalonMapWebView.kt (context, gson)",
+    "Fixed unused parameter warnings in HairstyleRepository.kt",
+    "Clean build with zero warnings"
+  ],
+  "project_structure": {
+    "main_files": [
+      "app/src/main/java/com/example/myapplication/MainActivity.kt",
+      "app/src/main/java/com/example/myapplication/ResultScreen.kt",
+      "app/src/main/java/com/example/myapplication/viewmodel/AnalysisViewModel.kt",
+      "app/src/main/java/com/example/myapplication/repository/HairstyleRepository.kt",
+      "app/src/main/java/com/example/myapplication/network/HairstyleApiService.kt",
+      "app/src/main/java/com/example/myapplication/network/ApiResponse.kt",
+      "app/src/main/java/com/example/myapplication/network/RetrofitClient.kt"
+    ],
+    "test_files": [
+      "app/src/test/java/com/example/myapplication/repository/HairstyleRepositoryTest.kt",
+      "app/src/test/java/com/example/myapplication/viewmodel/AnalysisViewModelTest.kt"
+    ]
+  }
+}

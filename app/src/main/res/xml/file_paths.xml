@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="camera_images" path="/" />
+    <!-- v30: 합성 이미지 공유용 -->
+    <cache-path name="shared_images" path="shared_images/" />
+</paths>

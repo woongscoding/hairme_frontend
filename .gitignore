@@ -1,0 +1,32 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# ================================
+# Keystore Security (절대 Git에 올리지 말 것!)
+# ================================
+keystore.properties
+keystore/
+*.keystore
+*.jks
+
+# 민감 정보 / 임시 파일
+RELEASE_INFO.md
+temp_cert.base64
+temp_cert.der
+nul
+nu_
+app/google-services.json
+.claude/

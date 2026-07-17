@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        네트워크 보안 설정
+        - HTTPS 강제 (cleartext HTTP 차단)
+        - 개발용 localhost 허용
+        - OpenStreetMap 타일 서버 HTTPS 허용
+    -->
+
+    <!-- 프로덕션 도메인 설정 -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">hairme.click</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- OpenStreetMap 및 외부 CDN 서버 허용 -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">tile.openstreetmap.org</domain>
+        <domain includeSubdomains="true">unpkg.com</domain>
+        <domain includeSubdomains="true">leafletjs.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- 개발용 localhost 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">192.168.0.3</domain>
+    </domain-config>
+
+    <!-- 기본 설정: 모든 cleartext HTTP 차단 -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
