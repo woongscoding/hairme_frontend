@@ -29,14 +29,14 @@ if (localPropertiesFile.exists()) {
 
 android {
     namespace = "com.example.myapplication"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.hairme.app"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 84
-        versionName = "5.11.2"
+        targetSdk = 36
+        versionCode = 88
+        versionName = "5.12.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -132,6 +132,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.ui:ui-text-google-fonts")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3") // collectAsStateWithLifecycle
@@ -170,6 +171,16 @@ dependencies {
     // Kakao Map SDK
     // ================================
     implementation("com.kakao.maps.open:android:2.13.0")
+
+    // ================================
+    // Kakao Login SDK (v2-user) - 카카오 로그인
+    // ================================
+    implementation("com.kakao.sdk:v2-user:2.20.6")
+
+    // ================================
+    // EncryptedSharedPreferences (서버 JWT 암호화 저장)
+    // ================================
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // ================================
     // Google Play Services (GPS 위치만)

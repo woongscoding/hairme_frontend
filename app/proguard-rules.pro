@@ -281,6 +281,20 @@
 -keep class android.app.Application { *; }
 
 # ================================
+# ✅ Kakao Login SDK (v2-user)
+# ================================
+-keep class com.kakao.sdk.** { *; }
+-keep interface com.kakao.sdk.** { *; }
+-dontwarn com.kakao.sdk.**
+
+# ================================
+# ✅ AndroidX Security (EncryptedSharedPreferences)
+# ================================
+-keep class androidx.security.crypto.** { *; }
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**
+
+# ================================
 # ✅ Kakao Map SDK - 강화된 설정
 # ================================
 # 모든 Kakao Map 관련 클래스 완전 보존
