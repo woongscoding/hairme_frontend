@@ -4,119 +4,118 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplication.ui.theme.Atelier
+import com.example.myapplication.ui.theme.AtelierCard
+import com.example.myapplication.ui.theme.AtelierTopBar
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.example.myapplication.ui.theme.atelierSerif
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoSelectionScreen(
     onBackClick: () -> Unit,
     onCameraClick: () -> Unit = {},
     onGalleryClick: () -> Unit = {}
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.photo_selection_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.Black
-                )
-            )
-        }
-    ) { innerPadding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Atelier.Background)
+            .statusBarsPadding()
+    ) {
+        AtelierTopBar(
+            title = stringResource(R.string.photo_selection_title),
+            navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+            navigationContentDescription = stringResource(R.string.back),
+            onNavigationClick = onBackClick
+        )
+
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-                .padding(innerPadding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .weight(1f)
+                .padding(horizontal = 24.dp)
         ) {
-            // 안내 텍스트
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 헤더
             Text(
                 text = stringResource(R.string.photo_selection_header),
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
+                style = atelierSerif(size = 26)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = stringResource(R.string.photo_selection_subheader),
-                fontSize = 15.sp,
-                color = Color(0xFF666666),
-                textAlign = TextAlign.Center
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                color = Atelier.TextSecondary
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // 카메라 선택 카드
             SelectionCard(
-                emoji = "📷",
+                icon = Icons.Default.PhotoCamera,
                 title = stringResource(R.string.photo_selection_camera_title),
                 description = stringResource(R.string.photo_selection_camera_desc),
                 onClick = onCameraClick
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // 갤러리 선택 카드
             SelectionCard(
-                emoji = "🖼️",
+                icon = Icons.Outlined.Image,
                 title = stringResource(R.string.photo_selection_gallery_title),
                 description = stringResource(R.string.photo_selection_gallery_desc),
                 onClick = onGalleryClick
             )
+        }
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // 안내 문구
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFFF9E6)
-                )
+        // 하단 고정 팁: 상단 헤어라인 보더 위 lightbulb + 안내문
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Atelier.Border)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 18.dp)
+                    .navigationBarsPadding(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "💡",
-                        fontSize = 20.sp,
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.photo_selection_tip),
-                        fontSize = 13.sp,
-                        color = Color(0xFF666666)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Lightbulb,
+                    contentDescription = null,
+                    tint = Atelier.BrandVioletSoft,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = stringResource(R.string.photo_selection_tip),
+                    fontSize = 13.sp,
+                    color = Atelier.TextSecondary
+                )
             }
         }
     }
@@ -124,59 +123,58 @@ fun PhotoSelectionScreen(
 
 @Composable
 fun SelectionCard(
-    emoji: String,
+    icon: ImageVector,
     title: String,
     description: String,
     onClick: () -> Unit
 ) {
-    Card(
+    AtelierCard(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF8F7FF)
-        ),
-        elevation = CardDefaults.cardElevation(2.dp)
+            .clickable(onClick = onClick)
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .border(
-                    width = 2.dp,
-                    color = Color(0xFFE8E3FF),
-                    shape = RoundedCornerShape(20.dp)
-                )
-                .padding(20.dp)
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+            // 원형 아이콘 웰 52dp
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .border(1.dp, Atelier.Border, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                // 이모지
-                Text(
-                    text = emoji,
-                    fontSize = 40.sp,
-                    modifier = Modifier.padding(end = 20.dp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Atelier.BrandViolet,
+                    modifier = Modifier.size(24.dp)
                 )
-
-                // 텍스트
-                Column {
-                    Text(
-                        text = title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = description,
-                        fontSize = 14.sp,
-                        color = Color(0xFF666666)
-                    )
-                }
             }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = atelierSerif(size = 17)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    fontSize = 13.sp,
+                    color = Atelier.TextSecondary
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Atelier.Chevron,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

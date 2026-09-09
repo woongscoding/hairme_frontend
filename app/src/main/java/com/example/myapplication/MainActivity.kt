@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -31,7 +32,10 @@ import com.example.myapplication.PhotoConfirmScreen
 import com.example.myapplication.ResultScreen
 import com.example.myapplication.viewmodel.AnalysisUiState
 import com.example.myapplication.viewmodel.AnalysisViewModel
+import com.example.myapplication.viewmodel.AuthUiState
+import com.example.myapplication.viewmodel.AuthViewModel
 import com.example.myapplication.viewmodel.HairColorUiState
+import com.example.myapplication.viewmodel.MyResultsViewModel
 import com.example.myapplication.viewmodel.HairColorSynthesisUiState
 import com.example.myapplication.viewmodel.SynthesisUiState
 import com.example.myapplication.viewmodel.SynthesisUsageState
@@ -45,6 +49,24 @@ import java.io.File
 
 // ✅ TAG를 최상단에 상수로 정의
 private const val TAG = "MainActivity"
+
+/**
+ * 제휴 링크를 외부 브라우저(ACTION_VIEW)로 연다.
+ *
+ * 인앱 웹뷰를 쓰지 않는 이유: 쿠팡 앱 연동/전환율. 쿠팡 앱이 설치돼 있으면
+ * 시스템이 딥링크로 앱을 열어준다. 실패 시 조용히 토스트 (합성 결과 화면 유지).
+ */
+private fun openInExternalBrowser(context: android.content.Context, url: String) {
+    try {
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ 외부 브라우저 열기 실패: ${e.message}")
+        Toast.makeText(context, "브라우저를 열 수 없어요", Toast.LENGTH_SHORT).show()
+    }
+}
 
 /**
  * MainActivity
@@ -90,15 +112,62 @@ fun HairMeApp(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var selectedGender by remember { mutableStateOf("male") } // 성별 상태 추가
 
+    // ✅ 카카오 로그인 ViewModel (Hilt 임시 비활성화로 수동 생성)
+    val activityContext = LocalContext.current
+    val authViewModel: AuthViewModel = run {
+        val application = activityContext.applicationContext as Application
+        viewModel(
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return AuthViewModel(application) as T
+                }
+            }
+        )
+    }
+
+    // ✅ 로그인 에러 메시지 Toast 표시 (일회성)
+    val authError by authViewModel.errorMessage.collectAsStateWithLifecycle()
+    LaunchedEffect(authError) {
+        authError?.let {
+            Toast.makeText(activityContext, it, Toast.LENGTH_LONG).show()
+            authViewModel.consumeError()
+        }
+    }
+
+    // ✅ 신규 가입 환영 다이얼로그
+    val welcomeUser by authViewModel.welcomeUser.collectAsStateWithLifecycle()
+    welcomeUser?.let { user ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { authViewModel.consumeWelcome() },
+            title = { androidx.compose.material3.Text("환영합니다 🎉") },
+            text = {
+                androidx.compose.material3.Text(
+                    "${user.nickname ?: "회원"}님, HairMe 가입을 환영해요!\n" +
+                        "신규 가입 보너스 크레딧이 지급되었어요. (현재 크레딧 ${user.credits}개)"
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { authViewModel.consumeWelcome() }) {
+                    androidx.compose.material3.Text("확인")
+                }
+            }
+        )
+    }
+
     NavHost(
         navController = navController,
         startDestination = "home"
     ) {
         composable("home") {
+            val usageState by viewModel.usageState.collectAsStateWithLifecycle()
+            val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) {
                 AnalyticsHelper.logScreenView("HomeScreen")
+                viewModel.fetchUsage() // 퀵 엔트리 "오늘 무료 N회 남음" 표시용
             }
             HomeScreen(
+                usageRemaining = usageState.remaining,
                 onStartClick = {
                     AnalyticsHelper.logStartAnalysis()
                     viewModel.resetState() // 분석 상태 초기화
@@ -107,6 +176,48 @@ fun HairMeApp(
                 onFindSalonClick = {
                     AnalyticsHelper.logFindSalonFromHome()
                     navController.navigate("salon_list/주변 미용실")
+                },
+                authUiState = authUiState,
+                onKakaoLoginClick = {
+                    // 카카오톡 앱 전환에 Activity Context 필요
+                    authViewModel.loginWithKakao(activityContext)
+                },
+                onLogoutClick = {
+                    authViewModel.logout()
+                },
+                onMyResultsClick = {
+                    navController.navigate("my_results")
+                }
+            )
+        }
+
+        // ✅ 내가 만든 스타일 (회원 합성 결과 히스토리)
+        composable("my_results") {
+            val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
+            // 백스택 엔트리 스코프 → 재진입 시 새 인스턴스가 만들어져 presigned URL을 항상 새로 받음
+            val myResultsViewModel: MyResultsViewModel = viewModel()
+            val myResultsState by myResultsViewModel.uiState.collectAsStateWithLifecycle()
+
+            LaunchedEffect(Unit) {
+                AnalyticsHelper.logScreenView("MyResultsScreen")
+            }
+            // 진입 시 + (화면 내 로그인 유도로) 로그인 완료 시 목록 로드
+            LaunchedEffect(authUiState) {
+                if (authUiState is AuthUiState.LoggedIn) {
+                    myResultsViewModel.refresh()
+                }
+            }
+
+            MyResultsScreen(
+                uiState = myResultsState,
+                authUiState = authUiState,
+                onBackClick = { navController.popBackStack() },
+                onRetryClick = { myResultsViewModel.refresh() },
+                onLoadMore = { myResultsViewModel.loadMore() },
+                onRequestLogin = { authViewModel.loginWithKakao(activityContext) },
+                onGoSynthesizeClick = {
+                    viewModel.resetState()
+                    navController.navigate("photo_selection")
                 }
             )
         }
@@ -145,6 +256,7 @@ fun HairMeApp(
             val hairColorState by viewModel.hairColorState.collectAsStateWithLifecycle()
             val hairColorSynthesisState by viewModel.hairColorSynthesisState.collectAsStateWithLifecycle() // ✅ v34
             val usageState by viewModel.usageState.collectAsStateWithLifecycle()
+            val authUiState by authViewModel.uiState.collectAsStateWithLifecycle() // 제휴 제품 클릭 로그인 분기용
             val success = uiState as? AnalysisUiState.Success
 
             // 포그라운드 복귀 시 Usage 재조회
@@ -242,8 +354,31 @@ fun HairMeApp(
                         SynthesisResultDialog(
                             synthesizedImage = state.synthesizedImage,
                             hairstyleName = state.hairstyleName,
+                            beforeImageUri = selectedImageUri, // Before/After 그리드용 원본 사진
+                            usageRemaining = usageState.remaining,
                             onDismiss = { viewModel.resetSynthesisState() },
-                            onTryAnother = { viewModel.resetSynthesisState() }
+                            onTryAnother = { viewModel.resetSynthesisState() },
+                            // 제휴 제품 추천
+                            recommendedProducts = state.recommendedProducts,
+                            disclosure = state.disclosure,
+                            isLoggedIn = authUiState is AuthUiState.LoggedIn,
+                            onProductClick = { product ->
+                                AnalyticsHelper.logProductClick(product.productId, state.hairstyleName)
+                                viewModel.openProductLink(
+                                    product = product,
+                                    style = state.hairstyleName,
+                                    source = "synthesis_result",
+                                    onLink = { url -> openInExternalBrowser(activityContext, url) },
+                                    onFailure = {
+                                        Toast.makeText(
+                                            activityContext,
+                                            "제품 페이지를 열지 못했어요. 잠시 후 다시 시도해주세요",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                )
+                            },
+                            onRequestLogin = { authViewModel.loginWithKakao(activityContext) }
                         )
                     }
                     is SynthesisUiState.Error -> {
@@ -273,6 +408,8 @@ fun HairMeApp(
                         ColorSynthesisResultDialog(
                             synthesizedImage = state.synthesizedImage,
                             colorName = state.colorName,
+                            beforeImageUri = selectedImageUri, // Before/After 그리드용 원본 사진
+                            usageRemaining = usageState.remaining,
                             onDismiss = { viewModel.resetHairColorSynthesisState() },
                             onTryAnother = { viewModel.resetHairColorSynthesisState() }
                         )
@@ -368,9 +505,9 @@ fun PhotoSelectionScreenWrapper(
         }
     }
 
-    // ✅ 갤러리 실행기
+    // ✅ 갤러리 실행기 (시스템 Photo Picker — 저장소 권한 불필요)
     val galleryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent()
+        ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
             Log.d(TAG, "✅ 갤러리에서 이미지 선택: $uri")
@@ -416,7 +553,9 @@ fun PhotoSelectionScreenWrapper(
             AnalyticsHelper.logSelectGallery()
             AnalyticsHelper.logPhotoInput("gallery")
             Log.d(TAG, "🖼️ 갤러리 실행")
-            galleryLauncher.launch("image/*")
+            galleryLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
         }
     )
 }

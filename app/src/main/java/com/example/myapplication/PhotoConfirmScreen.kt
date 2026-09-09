@@ -4,34 +4,33 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.myapplication.ui.theme.Atelier
+import com.example.myapplication.ui.theme.AtelierCard
+import com.example.myapplication.ui.theme.AtelierPrimaryButton
+import com.example.myapplication.ui.theme.AtelierSegmentedControl
+import com.example.myapplication.ui.theme.AtelierTopBar
+import com.example.myapplication.ui.theme.AtelierUnderlineButton
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.example.myapplication.ui.theme.atelierSerif
 
-// 색상 상수
-private object PhotoConfirmColors {
-    val Background = Color.White
-    val Primary = Color(0xFF5B4FFF)
-    val TextPrimary = Color.Black
-    val TextSecondary = Color(0xFF666666)
-    val ImagePlaceholder = Color(0xFFF0F0F0)
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotoConfirmScreen(
     imageUri: Uri?,
@@ -42,37 +41,41 @@ fun PhotoConfirmScreen(
     onRetryClick: () -> Unit = {},
     onAnalyzeClick: () -> Unit = {}
 ) {
-    Scaffold(
-        topBar = {
-            PhotoConfirmTopBar(onBackClick = onBackClick)
-        }
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Atelier.Background)
+            .statusBarsPadding()
+    ) {
+        AtelierTopBar(
+            title = stringResource(R.string.photo_confirm_title),
+            navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+            navigationContentDescription = stringResource(R.string.back),
+            onNavigationClick = onBackClick
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PhotoConfirmColors.Background)
-                .padding(padding)
-                .verticalScroll(rememberScrollState()) // ✅ 스크롤 추가
-                .padding(24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 헤더 섹션
-            HeaderSection()
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // 이미지 프리뷰 (높이 제한 추가)
+            // 이미지 프리뷰 (기존 min/max 높이 로직 유지)
             ImagePreviewCard(imageUri = imageUri)
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 성별 선택 섹션 추가
+            // 성별 선택 → 세그먼트 컨트롤
             GenderSelectionSection(
                 selectedGender = selectedGender,
                 onGenderSelected = onGenderSelected
             )
 
-            Spacer(modifier = Modifier.height(24.dp)) // weight 대신 고정 높이
+            Spacer(modifier = Modifier.height(28.dp))
 
             // 액션 버튼들
             ActionButtons(
@@ -82,49 +85,8 @@ fun PhotoConfirmScreen(
                 onRetryClick = onRetryClick
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PhotoConfirmTopBar(onBackClick: () -> Unit) {
-    TopAppBar(
-        title = { Text(stringResource(R.string.photo_confirm_title)) },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.back)
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = PhotoConfirmColors.Background,
-            titleContentColor = PhotoConfirmColors.TextPrimary
-        )
-    )
-}
-
-@Composable
-private fun HeaderSection() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = stringResource(R.string.photo_confirm_header),
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = PhotoConfirmColors.TextPrimary
-        )
-
-        Text(
-            text = stringResource(R.string.photo_confirm_subheader),
-            fontSize = 14.sp,
-            color = PhotoConfirmColors.TextSecondary,
-            modifier = Modifier.padding(top = 8.dp)
-        )
     }
 }
 
@@ -138,72 +100,29 @@ private fun GenderSelectionSection(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "성별을 선택해주세요",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = PhotoConfirmColors.TextPrimary,
+            text = "어떤 스타일을 추천할까요?",
+            style = atelierSerif(size = 16),
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // 남성 버튼
-            GenderButton(
-                text = "남성용",
-                isSelected = selectedGender == "male",
-                onClick = { onGenderSelected("male") },
-                modifier = Modifier.weight(1f)
-            )
-
-            // 여성 버튼
-            GenderButton(
-                text = "여성용",
-                isSelected = selectedGender == "female",
-                onClick = { onGenderSelected("female") },
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun GenderButton(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.height(48.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) PhotoConfirmColors.Primary else Color(0xFFF0F0F0),
-            contentColor = if (isSelected) Color.White else PhotoConfirmColors.TextSecondary
-        ),
-        shape = RoundedCornerShape(12.dp),
-        elevation = if (isSelected) ButtonDefaults.buttonElevation(4.dp) else ButtonDefaults.buttonElevation(0.dp)
-    ) {
-        Text(
-            text = text,
-            fontSize = 15.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+        AtelierSegmentedControl(
+            options = listOf(
+                "male" to "남성 스타일",
+                "female" to "여성 스타일"
+            ),
+            selectedValue = selectedGender,
+            onSelect = onGenderSelected,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
 @Composable
 private fun ImagePreviewCard(imageUri: Uri?) {
-    Card(
+    AtelierCard(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 300.dp, max = 500.dp), // ✅ 최소/최대 높이 설정
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = PhotoConfirmColors.ImagePlaceholder
-        )
+            .heightIn(min = 300.dp, max = 500.dp)
     ) {
         when {
             imageUri != null -> {
@@ -212,9 +131,9 @@ private fun ImagePreviewCard(imageUri: Uri?) {
                     contentDescription = stringResource(R.string.photo_confirm_image_desc),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 300.dp, max = 500.dp), // ✅ 이미지 높이 제한
-                    contentScale = ContentScale.Fit, // ✅ 이미지 비율 유지
-                    alignment = Alignment.Center // ✅ 중앙 정렬
+                        .heightIn(min = 300.dp, max = 500.dp),
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.Center
                 )
             }
             else -> {
@@ -230,12 +149,14 @@ private fun ImagePlaceholder() {
         modifier = Modifier
             .fillMaxWidth()
             .height(400.dp)
-            .background(PhotoConfirmColors.ImagePlaceholder),
+            .background(Atelier.Divider),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = stringResource(R.string.photo_confirm_image_error),
-            color = Color.Gray
+            fontSize = 14.sp,
+            color = Atelier.TextTertiary,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -249,7 +170,7 @@ private fun ActionButtons(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AnalyzeButton(
             isLoading = isLoading,
@@ -257,7 +178,12 @@ private fun ActionButtons(
             onClick = onAnalyzeClick
         )
 
-        RetryButton(onClick = onRetryClick)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        AtelierUnderlineButton(
+            text = stringResource(R.string.photo_confirm_retry_button),
+            onClick = onRetryClick
+        )
     }
 }
 
@@ -267,65 +193,37 @@ private fun AnalyzeButton(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = PhotoConfirmColors.Primary
-        ),
-        shape = RoundedCornerShape(16.dp),
-        enabled = enabled && !isLoading
-    ) {
-        if (isLoading) {
-            LoadingContent()
-        } else {
-            Text(
-                text = stringResource(R.string.photo_confirm_analyze_button),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-private fun LoadingContent() {
-    Row(
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(24.dp),
-            color = Color.White,
-            strokeWidth = 2.dp
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
+    if (isLoading) {
+        // 로딩 중: pill 내부 CircularProgressIndicator (기존 로직 유지)
+        AtelierPrimaryButton(
             text = stringResource(R.string.photo_confirm_analyzing),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
+            onClick = {},
+            enabled = false,
+            modifier = Modifier.fillMaxWidth(),
+            height = 56.dp,
+            leadingContent = {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            }
         )
-    }
-}
-
-@Composable
-private fun RetryButton(onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = PhotoConfirmColors.Primary
-        )
-    ) {
-        Text(
-            text = stringResource(R.string.photo_confirm_retry_button),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
+    } else {
+        AtelierPrimaryButton(
+            text = stringResource(R.string.photo_confirm_analyze_button),
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            height = 56.dp,
+            leadingContent = {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = Atelier.BrandVioletSoft,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         )
     }
 }

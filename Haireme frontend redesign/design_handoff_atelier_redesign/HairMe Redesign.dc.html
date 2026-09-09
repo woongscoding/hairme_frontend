@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..600,0..1,0">
+<style>
+body { margin: 0; background: #EDEBE7; font-family: "Pretendard Variable", Pretendard, sans-serif; }
+a { color: #5B4FFF; text-decoration: none; }
+a:hover { color: #4438D6; }
+.msr { font-family: 'Material Symbols Rounded'; font-weight: 400; line-height: 1; display: inline-block; }
+</style>
+</helmet>
+<section style="padding: 56px 64px 96px; display: flex; flex-direction: column; gap: 40px;">
+  <div style="max-width: 880px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-size: 13px; letter-spacing: 0.18em; color: #8A8578; font-weight: 600;">HAIRME · ATELIER · 전체 플로우</div>
+    <div style="font-size: 30px; font-weight: 700; color: #1C1826;">선택하신 <a href="#1a">1a</a> Atelier 방향 — 전체 6개 화면</div>
+    <div style="font-size: 15px; color: #6B665C; line-height: 1.6;">홈 → 사진 선택 → 사진 확인 → 분석 결과 → 가상 스타일링 결과 → 주변 미용실. 이미지 영역은 플레이스홀더입니다.</div>
+  </div>
+  <div id="2a" style="display: flex; flex-direction: column; gap: 20px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="background: #1C1826; color: #fff; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">2a</span>
+      <span style="font-size: 17px; font-weight: 700; color: #1C1826;">Atelier 풀 플로우</span>
+    </div>
+    <div style="display: flex; gap: 36px; align-items: flex-start;">
+
+      <!-- 홈 -->
+      <div data-screen-label="홈" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 13px; font-weight: 700; color: #8A8578; letter-spacing: 0.1em;">01 · 홈</div>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; padding: 8px 24px 16px; box-sizing: border-box; color: #1C1826;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0 20px;">
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 19px; font-weight: 600; letter-spacing: 0.22em;">HAIRME</div>
+              <div style="display: flex; gap: 14px; align-items: center;">
+                <span class="msr" style="font-size: 22px; color: #1C1826;">location_on</span>
+                <span class="msr" style="font-size: 22px; color: #1C1826;">history</span>
+              </div>
+            </div>
+            <div style="font-family: 'Noto Serif KR', serif; font-size: 30px; font-weight: 600; line-height: 1.35;">오늘의 나에게<br>어울리는 스타일</div>
+            <div style="margin-top: 10px; font-size: 14px; color: #6B665C; line-height: 1.6;">얼굴형과 퍼스널컬러를 읽어<br>가장 잘 어울리는 헤어를 제안합니다</div>
+            <div style="margin-top: 24px; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div style="font-size: 11px; letter-spacing: 0.16em; color: #9B94FF; font-weight: 700;">AI CONSULTATION</div>
+                  <div style="font-family: 'Noto Serif KR', serif; font-size: 22px; font-weight: 600; margin-top: 8px;">얼굴형 분석</div>
+                </div>
+                <span class="msr" style="font-size: 26px; color: #5B4FFF;">face_retouching_natural</span>
+              </div>
+              <div style="height: 1px; background: #EEE9DE;"></div>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="font-size: 13px; color: #6B665C;">약 5초 · 사진 한 장이면 충분해요</div>
+                <div style="background: #1C1826; color: #fff; border-radius: 999px; padding: 12px 20px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px;">분석 시작<span class="msr" style="font-size: 16px;">arrow_forward</span></div>
+              </div>
+            </div>
+            <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <span class="msr" style="font-size: 22px; color: #5B4FFF;">location_on</span>
+                <div style="font-size: 14px; font-weight: 600;">주변 미용실</div>
+                <div style="font-size: 12px; color: #8A8578;">지도에서 바로 찾기</div>
+              </div>
+              <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <span class="msr" style="font-size: 22px; color: #5B4FFF;">auto_awesome</span>
+                <div style="font-size: 14px; font-weight: 600;">가상 스타일링</div>
+                <div style="font-size: 12px; color: #8A8578;">오늘 무료 3회 남음</div>
+              </div>
+            </div>
+            <div style="margin-top: 26px; display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">최근 분석</div>
+              <div style="font-size: 12px; color: #8A8578;">전체 보기</div>
+            </div>
+            <div style="margin-top: 12px; border-top: 1px solid #E2DCCF; border-bottom: 1px solid #E2DCCF; padding: 14px 0; display: flex; align-items: center; gap: 14px;">
+              <div style="width: 44px; height: 44px; border-radius: 2px; background: repeating-linear-gradient(45deg, #EFEAE0 0 6px, #E6E0D2 6px 12px);"></div>
+              <div style="flex: 1;">
+                <div style="font-size: 14px; font-weight: 600;">계란형 · 여름 쿨톤</div>
+                <div style="font-size: 12px; color: #8A8578; margin-top: 3px;">7월 12일 · 추천 3건</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+            </div>
+          </div>
+        </x-import>
+      </div>
+
+      <!-- 사진 선택 -->
+      <div data-screen-label="사진 선택" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 13px; font-weight: 700; color: #8A8578; letter-spacing: 0.1em;">02 · 사진 선택</div>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; padding: 8px 24px 24px; box-sizing: border-box; color: #1C1826;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0 28px;">
+              <span class="msr" style="font-size: 22px;">arrow_back</span>
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">사진 선택</div>
+            </div>
+            <div style="font-family: 'Noto Serif KR', serif; font-size: 26px; font-weight: 600; line-height: 1.4;">얼굴 사진을<br>준비해 주세요</div>
+            <div style="margin-top: 10px; font-size: 14px; color: #6B665C; line-height: 1.6;">정면을 바라본 사진일수록<br>분석이 정확해집니다</div>
+            <div style="margin-top: 32px; display: flex; flex-direction: column; gap: 14px;">
+              <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 22px; display: flex; align-items: center; gap: 18px;">
+                <div style="width: 52px; height: 52px; border: 1px solid #E2DCCF; border-radius: 999px; display: flex; align-items: center; justify-content: center;"><span class="msr" style="font-size: 24px; color: #5B4FFF;">photo_camera</span></div>
+                <div style="flex: 1;">
+                  <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">카메라로 촬영</div>
+                  <div style="font-size: 13px; color: #8A8578; margin-top: 4px;">지금 바로 찍기</div>
+                </div>
+                <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+              </div>
+              <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 22px; display: flex; align-items: center; gap: 18px;">
+                <div style="width: 52px; height: 52px; border: 1px solid #E2DCCF; border-radius: 999px; display: flex; align-items: center; justify-content: center;"><span class="msr" style="font-size: 24px; color: #5B4FFF;">imagesmode</span></div>
+                <div style="flex: 1;">
+                  <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">갤러리에서 선택</div>
+                  <div style="font-size: 13px; color: #8A8578; margin-top: 4px;">저장된 사진 불러오기</div>
+                </div>
+                <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+              </div>
+            </div>
+            <div style="flex: 1;"></div>
+            <div style="border-top: 1px solid #E2DCCF; padding-top: 16px; display: flex; gap: 12px; align-items: flex-start;">
+              <span class="msr" style="font-size: 18px; color: #9B94FF;">lightbulb</span>
+              <div style="font-size: 13px; color: #6B665C; line-height: 1.6;">밝은 곳에서 찍은 정면 사진이 좋아요.<br>안경이나 앞머리로 얼굴이 가려지지 않게 해주세요.</div>
+            </div>
+          </div>
+        </x-import>
+      </div>
+
+      <!-- 사진 확인 -->
+      <div data-screen-label="사진 확인" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 13px; font-weight: 700; color: #8A8578; letter-spacing: 0.1em;">03 · 사진 확인</div>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; padding: 8px 24px 24px; box-sizing: border-box; color: #1C1826;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0 18px;">
+              <span class="msr" style="font-size: 22px;">arrow_back</span>
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">사진 확인</div>
+            </div>
+            <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: repeating-linear-gradient(45deg, #EFEAE0 0 10px, #E6E0D2 10px 20px); height: 360px; display: flex; align-items: center; justify-content: center;">
+              <span style="font-family: monospace; font-size: 12px; color: #8A8578; background: #FAF7F2; padding: 4px 10px;">선택한 얼굴 사진</span>
+            </div>
+            <div style="margin-top: 22px; font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 600;">어떤 스타일을 추천할까요?</div>
+            <div style="margin-top: 12px; display: flex; border: 1px solid #E2DCCF; border-radius: 999px; background: #fff; padding: 4px;">
+              <div style="flex: 1; background: #1C1826; color: #fff; border-radius: 999px; padding: 11px 0; text-align: center; font-size: 14px; font-weight: 600;">남성 스타일</div>
+              <div style="flex: 1; color: #8A8578; padding: 11px 0; text-align: center; font-size: 14px; font-weight: 500;">여성 스타일</div>
+            </div>
+            <div style="flex: 1;"></div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="background: #1C1826; color: #fff; border-radius: 999px; padding: 16px 0; text-align: center; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;"><span class="msr" style="font-size: 18px; color: #9B94FF;">auto_awesome</span>이 사진으로 분석하기</div>
+              <div style="text-align: center; font-size: 14px; color: #8A8578; padding: 10px 0; text-decoration: underline; text-underline-offset: 4px;">다시 선택하기</div>
+            </div>
+          </div>
+        </x-import>
+      </div>
+
+      <!-- 분석 결과 -->
+      <div data-screen-label="분석 결과" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 13px; font-weight: 700; color: #8A8578; letter-spacing: 0.1em;">04 · 분석 결과</div>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; padding: 8px 24px 0; box-sizing: border-box; color: #1C1826; overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0 18px;">
+              <span class="msr" style="font-size: 22px;">arrow_back</span>
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600; flex: 1;">분석 리포트</div>
+              <span style="font-size: 12px; color: #8A8578;">4.5초 소요</span>
+            </div>
+            <div style="display: flex; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff;">
+              <div style="flex: 1; padding: 18px 20px;">
+                <div style="font-size: 11px; letter-spacing: 0.14em; color: #8A8578;">얼굴형</div>
+                <div style="font-family: 'Noto Serif KR', serif; font-size: 21px; font-weight: 600; margin-top: 6px; color: #4438D6;">계란형</div>
+              </div>
+              <div style="width: 1px; background: #EEE9DE;"></div>
+              <div style="flex: 1; padding: 18px 20px;">
+                <div style="font-size: 11px; letter-spacing: 0.14em; color: #8A8578;">퍼스널컬러</div>
+                <div style="font-family: 'Noto Serif KR', serif; font-size: 21px; font-weight: 600; margin-top: 6px; color: #4438D6;">여름 쿨</div>
+              </div>
+            </div>
+            <div style="margin-top: 22px; display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">추천 스타일</div>
+              <div style="font-size: 12px; color: #8A8578;">가상 체험 3회 남음</div>
+            </div>
+            <div style="margin-top: 12px; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; overflow: hidden;">
+              <div style="height: 190px; background: repeating-linear-gradient(45deg, #EFEAE0 0 10px, #E6E0D2 10px 20px); display: flex; align-items: center; justify-content: center;">
+                <span style="font-family: monospace; font-size: 12px; color: #8A8578; background: #FAF7F2; padding: 4px 10px;">투블럭컷 예시 사진</span>
+              </div>
+              <div style="padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 11px;">
+                <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                  <div style="font-family: 'Noto Serif KR', serif; font-size: 19px; font-weight: 600;">1 · 투블럭컷</div>
+                  <div style="font-size: 14px; font-weight: 700; color: #5B4FFF;">92% 매칭</div>
+                </div>
+                <div style="height: 3px; background: #EEE9DE; border-radius: 2px;"><div style="width: 92%; height: 100%; background: #5B4FFF; border-radius: 2px;"></div></div>
+                <div style="font-size: 13px; color: #6B665C; line-height: 1.55;">이마 라인을 살려 계란형 얼굴의 비율을 가장 돋보이게 하는 스타일이에요.</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="flex: 1; border: 1px solid #1C1826; border-radius: 999px; padding: 10px 0; text-align: center; font-size: 13px; font-weight: 600;">가상으로 체험하기</div>
+                  <span class="msr" style="font-size: 20px; color: #8A8578; border: 1px solid #E2DCCF; border-radius: 999px; padding: 9px;">thumb_up</span>
+                  <span class="msr" style="font-size: 20px; color: #8A8578; border: 1px solid #E2DCCF; border-radius: 999px; padding: 9px;">thumb_down</span>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top: 12px; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; display: flex; align-items: center; gap: 16px; padding: 12px;">
+              <div style="width: 64px; height: 64px; border-radius: 2px; background: repeating-linear-gradient(45deg, #EFEAE0 0 8px, #E6E0D2 8px 16px);"></div>
+              <div style="flex: 1;">
+                <div style="font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 600;">2 · 댄디컷</div>
+                <div style="font-size: 12px; color: #5B4FFF; font-weight: 700; margin-top: 4px;">85% 매칭</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+            </div>
+            <div style="margin-top: 12px; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; display: flex; align-items: center; gap: 16px; padding: 12px;">
+              <div style="width: 64px; height: 64px; border-radius: 2px; background: repeating-linear-gradient(45deg, #EFEAE0 0 8px, #E6E0D2 8px 16px);"></div>
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 10px; letter-spacing: 0.12em; font-weight: 700; color: #C2410C; border: 1px solid #E8C9B4; border-radius: 999px; padding: 2px 8px;">TREND</span><span style="font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 600;">리프컷</span></div>
+                <div style="font-size: 12px; color: #8A8578; margin-top: 4px;">요즘 가장 인기 있는 스타일</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+            </div>
+          </div>
+        </x-import>
+      </div>
+
+      <!-- 염색 추천 (결과 하단 스크롤) -->
+      <div data-screen-label="염색 추천" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 13px; font-weight: 700; color: #8A8578; letter-spacing: 0.1em;">04-2 · 결과 하단 (염색 추천)</div>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; padding: 8px 24px 24px; box-sizing: border-box; color: #1C1826;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0 18px;">
+              <span class="msr" style="font-size: 22px;">arrow_back</span>
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">분석 리포트</div>
+            </div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">퍼스널컬러 염색 추천</div>
+              <div style="font-size: 12px; color: #8A8578;">여름 쿨 기준</div>
+            </div>
+            <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 12px;">
+              <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 16px; display: flex; align-items: center; gap: 16px;">
+                <div style="width: 52px; height: 52px; border-radius: 999px; background: #8B7355; border: 3px solid #fff; box-shadow: 0 0 0 1px #E2DCCF;"></div>
+                <div style="flex: 1;">
+                  <div style="font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 600;">1 · 애쉬브라운</div>
+                  <div style="font-size: 12px; color: #6B665C; margin-top: 4px; line-height: 1.5;">회색빛이 도는 부드러운 브라운 · 밝기 6–7</div>
+                </div>
+                <div style="border: 1px solid #1C1826; border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 600;">체험</div>
+              </div>
+              <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 16px; display: flex; align-items: center; gap: 16px;">
+                <div style="width: 52px; height: 52px; border-radius: 999px; background: #BC8F8F; border: 3px solid #fff; box-shadow: 0 0 0 1px #E2DCCF;"></div>
+                <div style="flex: 1;">
+                  <div style="font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 600;">2 · 로즈브라운</div>
+                  <div style="font-size: 12px; color: #6B665C; margin-top: 4px; line-height: 1.5;">장미빛이 도는 우아한 브라운 · 밝기 7–8</div>
+                </div>
+                <div style="border: 1px solid #1C1826; border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 600;">체험</div>
+              </div>
+            </div>
+            <div style="margin-top: 16px; border-top: 1px solid #E2DCCF; padding-top: 14px; display: flex; gap: 10px; align-items: flex-start;">
+              <span class="msr" style="font-size: 18px; color: #C2410C;">block</span>
+              <div style="font-size: 13px; color: #6B665C; line-height: 1.6;">피해야 할 컬러 — 오렌지브라운, 골드브라운</div>
+            </div>
+            <div style="flex: 1;"></div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="border: 1px solid #1C1826; border-radius: 999px; padding: 15px 0; text-align: center; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;"><span class="msr" style="font-size: 18px; color: #5B4FFF;">location_on</span>이 스타일 잘하는 주변 미용실 찾기</div>
+              <div style="background: #1C1826; color: #fff; border-radius: 999px; padding: 15px 0; text-align: center; font-size: 14px; font-weight: 600;">홈으로 돌아가기</div>
+            </div>
+          </div>
+        </x-import>
+      </div>
+
+      <!-- 가상 스타일링 결과 -->
+      <div data-screen-label="가상 스타일링 결과" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 13px; font-weight: 700; color: #8A8578; letter-spacing: 0.1em;">05 · 가상 스타일링 결과</div>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; padding: 8px 24px 24px; box-sizing: border-box; color: #1C1826;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0 18px;">
+              <span class="msr" style="font-size: 22px;">close</span>
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600; flex: 1;">스타일 적용 결과</div>
+              <span style="font-size: 12px; color: #8A8578;">2회 남음</span>
+            </div>
+            <div style="font-family: 'Noto Serif KR', serif; font-size: 24px; font-weight: 600; line-height: 1.4;">투블럭컷,<br>이렇게 어울려요</div>
+            <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="border: 1px solid #E2DCCF; border-radius: 4px; height: 250px; background: repeating-linear-gradient(45deg, #EFEAE0 0 10px, #E6E0D2 10px 20px); display: flex; align-items: center; justify-content: center;">
+                  <span style="font-family: monospace; font-size: 11px; color: #8A8578; background: #FAF7F2; padding: 3px 8px;">원본 사진</span>
+                </div>
+                <div style="font-size: 12px; letter-spacing: 0.14em; color: #8A8578; text-align: center;">BEFORE</div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="border: 2px solid #5B4FFF; border-radius: 4px; height: 250px; background: repeating-linear-gradient(45deg, #EDEAFF 0 10px, #E2DDFB 10px 20px); display: flex; align-items: center; justify-content: center;">
+                  <span style="font-family: monospace; font-size: 11px; color: #5B4FFF; background: #fff; padding: 3px 8px;">합성 결과</span>
+                </div>
+                <div style="font-size: 12px; letter-spacing: 0.14em; color: #5B4FFF; font-weight: 700; text-align: center;">AFTER</div>
+              </div>
+            </div>
+            <div style="margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div style="border: 1px solid #1C1826; border-radius: 999px; padding: 13px 0; text-align: center; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 7px;"><span class="msr" style="font-size: 17px;">download</span>이미지 저장</div>
+              <div style="border: 1px solid #1C1826; border-radius: 999px; padding: 13px 0; text-align: center; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 7px;"><span class="msr" style="font-size: 17px;">share</span>공유하기</div>
+            </div>
+            <div style="flex: 1;"></div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="background: #1C1826; color: #fff; border-radius: 999px; padding: 15px 0; text-align: center; font-size: 14px; font-weight: 600;">다른 스타일 적용해보기</div>
+              <div style="text-align: center; font-size: 14px; color: #8A8578; padding: 8px 0; text-decoration: underline; text-underline-offset: 4px;">결과로 돌아가기</div>
+            </div>
+          </div>
+        </x-import>
+      </div>
+
+      <!-- 주변 미용실 -->
+      <div data-screen-label="주변 미용실" style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 13px; font-weight: 700; color: #8A8578; letter-spacing: 0.1em;">06 · 주변 미용실</div>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; box-sizing: border-box; color: #1C1826;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 16px 24px;">
+              <span class="msr" style="font-size: 22px;">arrow_back</span>
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600; flex: 1;">주변 미용실</div>
+              <span class="msr" style="font-size: 22px;">search</span>
+            </div>
+            <div style="height: 260px; background: repeating-linear-gradient(45deg, #EFEAE0 0 12px, #E6E0D2 12px 24px); position: relative; display: flex; align-items: center; justify-content: center;">
+              <span style="font-family: monospace; font-size: 12px; color: #8A8578; background: #FAF7F2; padding: 4px 10px;">카카오 지도 영역</span>
+              <div style="position: absolute; bottom: 14px; right: 14px; background: #fff; border: 1px solid #E2DCCF; border-radius: 999px; padding: 9px; display: flex;"><span class="msr" style="font-size: 20px; color: #5B4FFF;">my_location</span></div>
+            </div>
+            <div style="padding: 18px 24px 24px; display: flex; flex-direction: column; gap: 0; flex: 1;">
+              <div style="display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 6px;">
+                <div style="font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 600;">내 주변 12곳</div>
+                <div style="font-size: 12px; color: #8A8578;">거리순</div>
+              </div>
+              <div style="border-top: 1px solid #E2DCCF; padding: 16px 0; display: flex; align-items: center; gap: 14px;">
+                <div style="width: 56px; height: 56px; border-radius: 2px; background: repeating-linear-gradient(45deg, #EFEAE0 0 7px, #E6E0D2 7px 14px);"></div>
+                <div style="flex: 1;">
+                  <div style="font-size: 15px; font-weight: 600;">살롱 드 마레</div>
+                  <div style="font-size: 12px; color: #8A8578; margin-top: 4px;">★ 4.8 · 180m · 투블럭컷 시술 후기 24</div>
+                </div>
+                <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+              </div>
+              <div style="border-top: 1px solid #E2DCCF; padding: 16px 0; display: flex; align-items: center; gap: 14px;">
+                <div style="width: 56px; height: 56px; border-radius: 2px; background: repeating-linear-gradient(45deg, #EFEAE0 0 7px, #E6E0D2 7px 14px);"></div>
+                <div style="flex: 1;">
+                  <div style="font-size: 15px; font-weight: 600;">메종 헤어 스튜디오</div>
+                  <div style="font-size: 12px; color: #8A8578; margin-top: 4px;">★ 4.6 · 320m · 예약 가능</div>
+                </div>
+                <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+              </div>
+              <div style="border-top: 1px solid #E2DCCF; padding: 16px 0; display: flex; align-items: center; gap: 14px;">
+                <div style="width: 56px; height: 56px; border-radius: 2px; background: repeating-linear-gradient(45deg, #EFEAE0 0 7px, #E6E0D2 7px 14px);"></div>
+                <div style="flex: 1;">
+                  <div style="font-size: 15px; font-weight: 600;">아뜰리에 온</div>
+                  <div style="font-size: 12px; color: #8A8578; margin-top: 4px;">★ 4.5 · 410m · 남성 컷 전문</div>
+                </div>
+                <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+              </div>
+            </div>
+          </div>
+        </x-import>
+      </div>
+
+    </div>
+  </div>
+</section>
+<section style="padding: 56px 64px 96px; display: flex; flex-direction: column; gap: 40px;">
+  <div style="max-width: 880px; display: flex; flex-direction: column; gap: 12px;">
+    <div style="font-size: 13px; letter-spacing: 0.18em; color: #8A8578; font-weight: 600;">HAIRME · UI 리디자인 · 방향 탐색</div>
+    <div style="font-size: 30px; font-weight: 700; color: #1C1826;">3가지 방향 — 홈 대시보드 + 분석 결과</div>
+    <div style="font-size: 15px; color: #6B665C; line-height: 1.6;">모두 보라 브랜드를 유지하되 프리미엄 뷰티/살롱 톤으로 다듬었습니다. 마음에 드는 방향(<a href="#1a">1a</a> 에디토리얼 아뜰리에 / <a href="#1b">1b</a> 소프트 뤼미에르 / <a href="#1c">1c</a> 누아르 살롱)을 골라주시면 전체 6개 화면으로 확장할게요. 이미지 영역은 플레이스홀더입니다.</div>
+  </div>
+  <div style="display: flex; gap: 72px; align-items: flex-start;">
+
+    <!-- ─────────── 1a Atelier ─────────── -->
+    <div id="1a" style="display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: #1C1826; color: #fff; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">1a</span>
+        <span style="font-size: 17px; font-weight: 700; color: #1C1826;">Atelier — 에디토리얼 아이보리</span>
+        <span style="font-size: 13px; color: #8A8578;">세리프 헤드라인 · 따뜻한 종이 질감 · 살롱 매거진 톤</span>
+      </div>
+      <div style="display: flex; gap: 28px;">
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; padding: 8px 24px 16px; box-sizing: border-box; color: #1C1826;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0 20px;">
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 19px; font-weight: 600; letter-spacing: 0.22em;">HAIRME</div>
+              <div style="display: flex; gap: 14px; align-items: center;">
+                <span class="msr" style="font-size: 22px; color: #1C1826;">location_on</span>
+                <span class="msr" style="font-size: 22px; color: #1C1826;">history</span>
+              </div>
+            </div>
+            <div style="font-family: 'Noto Serif KR', serif; font-size: 30px; font-weight: 600; line-height: 1.35;">오늘의 나에게<br>어울리는 스타일</div>
+            <div style="margin-top: 10px; font-size: 14px; color: #6B665C; line-height: 1.6;">얼굴형과 퍼스널컬러를 읽어<br>가장 잘 어울리는 헤어를 제안합니다</div>
+            <div style="margin-top: 24px; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div style="font-size: 11px; letter-spacing: 0.16em; color: #9B94FF; font-weight: 700;">AI CONSULTATION</div>
+                  <div style="font-family: 'Noto Serif KR', serif; font-size: 22px; font-weight: 600; margin-top: 8px;">얼굴형 분석</div>
+                </div>
+                <span class="msr" style="font-size: 26px; color: #5B4FFF;">face_retouching_natural</span>
+              </div>
+              <div style="height: 1px; background: #EEE9DE;"></div>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="font-size: 13px; color: #6B665C;">약 5초 · 사진 한 장이면 충분해요</div>
+                <div style="background: #1C1826; color: #fff; border-radius: 999px; padding: 12px 20px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px;">분석 시작<span class="msr" style="font-size: 16px;">arrow_forward</span></div>
+              </div>
+            </div>
+            <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+              <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <span class="msr" style="font-size: 22px; color: #5B4FFF;">location_on</span>
+                <div style="font-size: 14px; font-weight: 600;">주변 미용실</div>
+                <div style="font-size: 12px; color: #8A8578;">지도에서 바로 찾기</div>
+              </div>
+              <div style="border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <span class="msr" style="font-size: 22px; color: #5B4FFF;">auto_awesome</span>
+                <div style="font-size: 14px; font-weight: 600;">가상 스타일링</div>
+                <div style="font-size: 12px; color: #8A8578;">오늘 무료 3회 남음</div>
+              </div>
+            </div>
+            <div style="margin-top: 26px; display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">최근 분석</div>
+              <div style="font-size: 12px; color: #8A8578;">전체 보기</div>
+            </div>
+            <div style="margin-top: 12px; border-top: 1px solid #E2DCCF; border-bottom: 1px solid #E2DCCF; padding: 14px 0; display: flex; align-items: center; gap: 14px;">
+              <div style="width: 44px; height: 44px; border-radius: 2px; background: repeating-linear-gradient(45deg, #EFEAE0 0 6px, #E6E0D2 6px 12px);"></div>
+              <div style="flex: 1;">
+                <div style="font-size: 14px; font-weight: 600;">계란형 · 여름 쿨톤</div>
+                <div style="font-size: 12px; color: #8A8578; margin-top: 3px;">7월 12일 · 추천 3건</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+            </div>
+          </div>
+        </x-import>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #FAF7F2; display: flex; flex-direction: column; padding: 8px 24px 16px; box-sizing: border-box; color: #1C1826; overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0 18px;">
+              <span class="msr" style="font-size: 22px;">arrow_back</span>
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">분석 리포트</div>
+            </div>
+            <div style="display: flex; gap: 0; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff;">
+              <div style="flex: 1; padding: 18px 20px;">
+                <div style="font-size: 11px; letter-spacing: 0.14em; color: #8A8578;">얼굴형</div>
+                <div style="font-family: 'Noto Serif KR', serif; font-size: 21px; font-weight: 600; margin-top: 6px; color: #4438D6;">계란형</div>
+              </div>
+              <div style="width: 1px; background: #EEE9DE;"></div>
+              <div style="flex: 1; padding: 18px 20px;">
+                <div style="font-size: 11px; letter-spacing: 0.14em; color: #8A8578;">퍼스널컬러</div>
+                <div style="font-family: 'Noto Serif KR', serif; font-size: 21px; font-weight: 600; margin-top: 6px; color: #4438D6;">여름 쿨</div>
+              </div>
+            </div>
+            <div style="margin-top: 24px; display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-family: 'Noto Serif KR', serif; font-size: 17px; font-weight: 600;">추천 스타일</div>
+              <div style="font-size: 12px; color: #8A8578;">매칭 순</div>
+            </div>
+            <div style="margin-top: 12px; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; overflow: hidden;">
+              <div style="height: 210px; background: repeating-linear-gradient(45deg, #EFEAE0 0 10px, #E6E0D2 10px 20px); display: flex; align-items: center; justify-content: center;">
+                <span style="font-family: monospace; font-size: 12px; color: #8A8578; background: #FAF7F2; padding: 4px 10px;">투블럭컷 예시 사진</span>
+              </div>
+              <div style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                  <div style="font-family: 'Noto Serif KR', serif; font-size: 20px; font-weight: 600;">1 · 투블럭컷</div>
+                  <div style="font-size: 14px; font-weight: 700; color: #5B4FFF;">92% 매칭</div>
+                </div>
+                <div style="height: 3px; background: #EEE9DE; border-radius: 2px;"><div style="width: 92%; height: 100%; background: #5B4FFF; border-radius: 2px;"></div></div>
+                <div style="font-size: 13px; color: #6B665C; line-height: 1.55;">이마 라인을 살려 계란형 얼굴의 비율을 가장 돋보이게 하는 스타일이에요.</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="flex: 1; border: 1px solid #1C1826; border-radius: 999px; padding: 10px 0; text-align: center; font-size: 13px; font-weight: 600;">가상으로 체험하기</div>
+                  <span class="msr" style="font-size: 20px; color: #8A8578; border: 1px solid #E2DCCF; border-radius: 999px; padding: 9px;">thumb_up</span>
+                  <span class="msr" style="font-size: 20px; color: #8A8578; border: 1px solid #E2DCCF; border-radius: 999px; padding: 9px;">thumb_down</span>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top: 12px; border: 1px solid #E2DCCF; border-radius: 4px; background: #fff; display: flex; align-items: center; gap: 16px; padding: 12px;">
+              <div style="width: 72px; height: 72px; border-radius: 2px; background: repeating-linear-gradient(45deg, #EFEAE0 0 8px, #E6E0D2 8px 16px);"></div>
+              <div style="flex: 1;">
+                <div style="font-family: 'Noto Serif KR', serif; font-size: 16px; font-weight: 600;">2 · 댄디컷</div>
+                <div style="font-size: 12px; color: #5B4FFF; font-weight: 700; margin-top: 4px;">85% 매칭</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #C9C2B2;">chevron_right</span>
+            </div>
+          </div>
+        </x-import>
+      </div>
+    </div>
+
+    <!-- ─────────── 1b Lumière ─────────── -->
+    <div id="1b" style="display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: #5B4FFF; color: #fff; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">1b</span>
+        <span style="font-size: 17px; font-weight: 700; color: #1C1826;">Lumière — 소프트 라벤더</span>
+        <span style="font-size: 13px; color: #8A8578;">부드러운 그라데이션 · 큰 라운드 · 친근한 프리미엄</span>
+      </div>
+      <div style="display: flex; gap: 28px;">
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: linear-gradient(175deg, #F1EEFF 0%, #FDFCFF 45%); display: flex; flex-direction: column; padding: 8px 22px 16px; box-sizing: border-box; color: #211D33;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0 22px;">
+              <div>
+                <div style="font-size: 13px; color: #8B85A8;">좋은 아침이에요</div>
+                <div style="font-size: 22px; font-weight: 800; margin-top: 3px;">오늘의 스타일을<br>찾아볼까요?</div>
+              </div>
+              <div style="width: 44px; height: 44px; border-radius: 999px; background: #E4E0FF; display: flex; align-items: center; justify-content: center;"><span class="msr" style="font-size: 22px; color: #5B4FFF;">person</span></div>
+            </div>
+            <div style="background: linear-gradient(135deg, #6A5BFF 0%, #5B4FFF 55%, #7B5BFF 100%); border-radius: 28px; padding: 26px 24px; color: #fff; box-shadow: 0 16px 36px rgba(91,79,255,0.28); display: flex; flex-direction: column; gap: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; opacity: 0.75;">AI FACE ANALYSIS</div>
+                  <div style="font-size: 21px; font-weight: 800; margin-top: 8px; line-height: 1.35;">사진 한 장으로<br>어울리는 헤어 찾기</div>
+                </div>
+                <span class="msr" style="font-size: 28px; font-variation-settings: 'FILL' 1;">face_retouching_natural</span>
+              </div>
+              <div style="background: #fff; color: #5B4FFF; border-radius: 999px; padding: 14px 0; text-align: center; font-size: 15px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px;"><span class="msr" style="font-size: 18px;">photo_camera</span>분석 시작하기</div>
+            </div>
+            <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div style="background: #fff; border-radius: 22px; padding: 18px; box-shadow: 0 6px 18px rgba(33,29,51,0.06); display: flex; flex-direction: column; gap: 12px;">
+                <div style="width: 38px; height: 38px; border-radius: 12px; background: #EDEAFF; display: flex; align-items: center; justify-content: center;"><span class="msr" style="font-size: 20px; color: #5B4FFF;">location_on</span></div>
+                <div><div style="font-size: 14px; font-weight: 700;">주변 미용실</div><div style="font-size: 12px; color: #8B85A8; margin-top: 3px;">내 위치 기준 탐색</div></div>
+              </div>
+              <div style="background: #fff; border-radius: 22px; padding: 18px; box-shadow: 0 6px 18px rgba(33,29,51,0.06); display: flex; flex-direction: column; gap: 12px;">
+                <div style="width: 38px; height: 38px; border-radius: 12px; background: #EDEAFF; display: flex; align-items: center; justify-content: center;"><span class="msr" style="font-size: 20px; color: #5B4FFF;">auto_awesome</span></div>
+                <div><div style="font-size: 14px; font-weight: 700;">가상 스타일링</div><div style="font-size: 12px; color: #8B85A8; margin-top: 3px;">무료 3회 남음</div></div>
+              </div>
+            </div>
+            <div style="margin-top: 24px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="font-size: 16px; font-weight: 800;">최근 분석</div>
+              <div style="font-size: 13px; color: #5B4FFF; font-weight: 600;">전체 보기</div>
+            </div>
+            <div style="margin-top: 12px; background: #fff; border-radius: 22px; padding: 16px; box-shadow: 0 6px 18px rgba(33,29,51,0.06); display: flex; align-items: center; gap: 14px;">
+              <div style="width: 52px; height: 52px; border-radius: 16px; background: repeating-linear-gradient(45deg, #EDEAFF 0 7px, #E2DDFB 7px 14px);"></div>
+              <div style="flex: 1;">
+                <div style="display: flex; gap: 6px;">
+                  <span style="background: #EDEAFF; color: #5B4FFF; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 9px;">계란형</span>
+                  <span style="background: #EDEAFF; color: #5B4FFF; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 9px;">여름 쿨</span>
+                </div>
+                <div style="font-size: 12px; color: #8B85A8; margin-top: 6px;">7월 12일 · 추천 스타일 3건</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #C6C1DD;">chevron_right</span>
+            </div>
+          </div>
+        </x-import>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" hint-size="428px,908px">
+          <div style="height: 100%; background: #F7F6FC; display: flex; flex-direction: column; padding: 8px 22px 16px; box-sizing: border-box; color: #211D33; overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0 16px;">
+              <span class="msr" style="font-size: 22px;">arrow_back</span>
+              <div style="font-size: 17px; font-weight: 800;">분석 결과</div>
+            </div>
+            <div style="background: linear-gradient(135deg, #6A5BFF, #7B5BFF); border-radius: 24px; padding: 20px 22px; color: #fff; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; gap: 28px;">
+                <div><div style="font-size: 12px; opacity: 0.75;">얼굴형</div><div style="font-size: 19px; font-weight: 800; margin-top: 4px;">계란형</div></div>
+                <div><div style="font-size: 12px; opacity: 0.75;">퍼스널컬러</div><div style="font-size: 19px; font-weight: 800; margin-top: 4px;">여름 쿨</div></div>
+              </div>
+              <div style="background: rgba(255,255,255,0.18); border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 5px;"><span class="msr" style="font-size: 14px;">bolt</span>4.5초</div>
+            </div>
+            <div style="margin-top: 20px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="font-size: 16px; font-weight: 800;">추천 헤어스타일</div>
+              <span style="background: #E9F9F0; color: #1CA05F; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 10px;">무료 합성 3회 남음</span>
+            </div>
+            <div style="margin-top: 12px; background: #fff; border-radius: 26px; box-shadow: 0 8px 24px rgba(33,29,51,0.07); overflow: hidden;">
+              <div style="position: relative; height: 200px; background: repeating-linear-gradient(45deg, #EDEAFF 0 10px, #E2DDFB 10px 20px); display: flex; align-items: center; justify-content: center;">
+                <span style="font-family: monospace; font-size: 12px; color: #6E688F; background: #fff; padding: 4px 10px; border-radius: 8px;">투블럭컷 예시 사진</span>
+                <span style="position: absolute; top: 14px; left: 14px; background: #211D33; color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 5px 11px;">BEST 1</span>
+                <span style="position: absolute; top: 14px; right: 14px; background: #fff; color: #5B4FFF; font-size: 12px; font-weight: 800; border-radius: 999px; padding: 5px 11px;">92%</span>
+              </div>
+              <div style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="font-size: 18px; font-weight: 800;">투블럭컷</div>
+                <div style="font-size: 13px; color: #6E688F; line-height: 1.55;">계란형 얼굴의 비율을 살려주는 가장 안정적인 선택이에요.</div>
+                <div style="display: flex; gap: 10px;">
+                  <div style="flex: 1; background: #5B4FFF; color: #fff; border-radius: 999px; padding: 12px 0; text-align: center; font-size: 14px; font-weight: 700;">내 얼굴에 적용해보기</div>
+                  <span class="msr" style="font-size: 20px; color: #8B85A8; background: #F1EFFA; border-radius: 999px; padding: 11px;">thumb_up</span>
+                  <span class="msr" style="font-size: 20px; color: #8B85A8; background: #F1EFFA; border-radius: 999px; padding: 11px;">thumb_down</span>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top: 12px; background: #fff; border-radius: 22px; box-shadow: 0 6px 18px rgba(33,29,51,0.06); padding: 14px; display: flex; align-items: center; gap: 14px;">
+              <div style="width: 64px; height: 64px; border-radius: 16px; background: repeating-linear-gradient(45deg, #EDEAFF 0 8px, #E2DDFB 8px 16px);"></div>
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="background: #EDEAFF; color: #5B4FFF; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 3px 9px;">2</span><span style="font-size: 15px; font-weight: 800;">댄디컷</span></div>
+                <div style="font-size: 12px; color: #5B4FFF; font-weight: 700; margin-top: 6px;">85% 매칭</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #C6C1DD;">chevron_right</span>
+            </div>
+          </div>
+        </x-import>
+      </div>
+    </div>
+
+    <!-- ─────────── 1c Noir ─────────── -->
+    <div id="1c" style="display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="background: #14111C; color: #B7ACFF; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">1c</span>
+        <span style="font-size: 17px; font-weight: 700; color: #1C1826;">Noir — 다크 살롱</span>
+        <span style="font-size: 13px; color: #8A8578;">딥 다크 + 바이올렛 글로우 · 하이엔드 살롱 무드</span>
+      </div>
+      <div style="display: flex; gap: 28px;">
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="428px,908px">
+          <div style="height: 100%; background: #121017; display: flex; flex-direction: column; padding: 8px 24px 16px; box-sizing: border-box; color: #F2EFF9;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0 22px;">
+              <div style="font-size: 18px; font-weight: 800; letter-spacing: 0.14em;">HAIR<span style="color: #9B8CFF;">ME</span></div>
+              <div style="display: flex; gap: 14px;">
+                <span class="msr" style="font-size: 22px; color: #B9B3CC;">location_on</span>
+                <span class="msr" style="font-size: 22px; color: #B9B3CC;">history</span>
+              </div>
+            </div>
+            <div style="font-size: 27px; font-weight: 800; line-height: 1.4;">거울 앞에서 고민은<br><span style="color: #9B8CFF;">이제 그만.</span></div>
+            <div style="margin-top: 10px; font-size: 14px; color: #8F89A3; line-height: 1.6;">AI가 얼굴형과 톤을 읽고<br>가장 잘 어울리는 헤어를 제안합니다</div>
+            <div style="margin-top: 26px; background: linear-gradient(160deg, #221D33, #1A1626); border: 1px solid #322A4D; border-radius: 20px; padding: 24px; box-shadow: 0 0 40px rgba(123,91,255,0.16); display: flex; flex-direction: column; gap: 18px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <div style="font-size: 11px; letter-spacing: 0.16em; color: #9B8CFF; font-weight: 700;">AI FACE ANALYSIS</div>
+                  <div style="font-size: 20px; font-weight: 800; margin-top: 8px;">얼굴형 분석</div>
+                </div>
+                <span class="msr" style="font-size: 26px; color: #9B8CFF; font-variation-settings: 'FILL' 1;">face_retouching_natural</span>
+              </div>
+              <div style="background: #7B5BFF; border-radius: 14px; padding: 14px 0; text-align: center; font-size: 15px; font-weight: 800; box-shadow: 0 8px 24px rgba(123,91,255,0.4);">분석 시작하기</div>
+            </div>
+            <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div style="background: #1B1824; border: 1px solid #2A2538; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <span class="msr" style="font-size: 22px; color: #9B8CFF;">location_on</span>
+                <div style="font-size: 14px; font-weight: 700;">주변 미용실</div>
+                <div style="font-size: 12px; color: #8F89A3;">지도로 찾기</div>
+              </div>
+              <div style="background: #1B1824; border: 1px solid #2A2538; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <span class="msr" style="font-size: 22px; color: #9B8CFF;">auto_awesome</span>
+                <div style="font-size: 14px; font-weight: 700;">가상 스타일링</div>
+                <div style="font-size: 12px; color: #8F89A3;">무료 3회 남음</div>
+              </div>
+            </div>
+            <div style="margin-top: 24px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="font-size: 16px; font-weight: 800;">최근 분석</div>
+              <div style="font-size: 13px; color: #9B8CFF; font-weight: 600;">전체 보기</div>
+            </div>
+            <div style="margin-top: 12px; background: #1B1824; border: 1px solid #2A2538; border-radius: 16px; padding: 14px; display: flex; align-items: center; gap: 14px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: repeating-linear-gradient(45deg, #262133 0 7px, #2E2840 7px 14px);"></div>
+              <div style="flex: 1;">
+                <div style="font-size: 14px; font-weight: 700;">계란형 · 여름 쿨톤</div>
+                <div style="font-size: 12px; color: #8F89A3; margin-top: 4px;">7월 12일 · 추천 3건</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #55506B;">chevron_right</span>
+            </div>
+          </div>
+        </x-import>
+        <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="428px,908px">
+          <div style="height: 100%; background: #121017; display: flex; flex-direction: column; padding: 8px 24px 16px; box-sizing: border-box; color: #F2EFF9; overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 8px 0 18px;">
+              <span class="msr" style="font-size: 22px; color: #B9B3CC;">arrow_back</span>
+              <div style="font-size: 17px; font-weight: 800;">분석 결과</div>
+            </div>
+            <div style="background: #1B1824; border: 1px solid #322A4D; border-radius: 18px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; gap: 28px;">
+                <div><div style="font-size: 12px; color: #8F89A3;">얼굴형</div><div style="font-size: 19px; font-weight: 800; margin-top: 4px; color: #B7ACFF;">계란형</div></div>
+                <div><div style="font-size: 12px; color: #8F89A3;">퍼스널컬러</div><div style="font-size: 19px; font-weight: 800; margin-top: 4px; color: #B7ACFF;">여름 쿨</div></div>
+              </div>
+              <span style="background: rgba(123,91,255,0.16); color: #B7ACFF; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 5px 11px;">3회 남음</span>
+            </div>
+            <div style="margin-top: 20px; font-size: 16px; font-weight: 800;">추천 헤어스타일</div>
+            <div style="margin-top: 12px; background: #1B1824; border: 1px solid #2A2538; border-radius: 20px; overflow: hidden;">
+              <div style="position: relative; height: 200px; background: repeating-linear-gradient(45deg, #262133 0 10px, #2E2840 10px 20px); display: flex; align-items: center; justify-content: center;">
+                <span style="font-family: monospace; font-size: 12px; color: #8F89A3; background: #121017; padding: 4px 10px; border-radius: 8px;">투블럭컷 예시 사진</span>
+                <span style="position: absolute; top: 14px; left: 14px; background: #7B5BFF; color: #fff; font-size: 11px; font-weight: 800; border-radius: 999px; padding: 5px 11px;">BEST 1</span>
+              </div>
+              <div style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: baseline; justify-content: space-between;">
+                  <div style="font-size: 18px; font-weight: 800;">투블럭컷</div>
+                  <div style="font-size: 14px; font-weight: 800; color: #9B8CFF;">92%</div>
+                </div>
+                <div style="height: 4px; background: #2A2538; border-radius: 2px;"><div style="width: 92%; height: 100%; background: linear-gradient(90deg, #7B5BFF, #B7ACFF); border-radius: 2px;"></div></div>
+                <div style="font-size: 13px; color: #8F89A3; line-height: 1.55;">계란형 얼굴의 비율을 살려주는 가장 안정적인 선택이에요.</div>
+                <div style="display: flex; gap: 10px;">
+                  <div style="flex: 1; background: #7B5BFF; border-radius: 12px; padding: 12px 0; text-align: center; font-size: 14px; font-weight: 700;">내 얼굴에 적용해보기</div>
+                  <span class="msr" style="font-size: 20px; color: #8F89A3; background: #262133; border-radius: 12px; padding: 11px;">thumb_up</span>
+                  <span class="msr" style="font-size: 20px; color: #8F89A3; background: #262133; border-radius: 12px; padding: 11px;">thumb_down</span>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top: 12px; background: #1B1824; border: 1px solid #2A2538; border-radius: 16px; padding: 14px; display: flex; align-items: center; gap: 14px;">
+              <div style="width: 60px; height: 60px; border-radius: 12px; background: repeating-linear-gradient(45deg, #262133 0 8px, #2E2840 8px 16px);"></div>
+              <div style="flex: 1;">
+                <div style="font-size: 15px; font-weight: 800;">2 · 댄디컷</div>
+                <div style="font-size: 12px; color: #9B8CFF; font-weight: 700; margin-top: 5px;">85% 매칭</div>
+              </div>
+              <span class="msr" style="font-size: 20px; color: #55506B;">chevron_right</span>
+            </div>
+          </div>
+        </x-import>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

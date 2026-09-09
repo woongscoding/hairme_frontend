@@ -10,6 +10,9 @@ import androidx.exifinterface.media.ExifInterface
 import com.example.myapplication.AnalysisResult
 import com.example.myapplication.HairstyleRecommendation
 import com.example.myapplication.network.HairstyleApiService
+import com.example.myapplication.network.ProductClickRequest
+import com.example.myapplication.network.ProductClickResponse
+import com.example.myapplication.network.RecommendedProduct
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -27,6 +30,15 @@ import com.example.myapplication.data.local.AnalysisHistoryDao
 import com.example.myapplication.data.local.AnalysisHistoryEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+
+/**
+ * 헤어스타일 합성 결과 묶음: 합성 이미지 + 스타일 맞춤 제휴 제품(+대가성 문구)
+ */
+data class SynthesisResult(
+    val image: Bitmap,
+    val recommendedProducts: List<RecommendedProduct> = emptyList(),
+    val disclosure: String? = null
+)
 
 /**
  * HairstyleRepository
@@ -54,6 +66,11 @@ class HairstyleRepository(
     // Usage API (일일 무료 합성 횟수 관리)
     private val usageApiService: com.example.myapplication.network.UsageApiService by lazy {
         com.example.myapplication.network.RetrofitClient.usageApiService
+    }
+
+    // Products API (제휴 제품 추천/클릭) - 클릭은 JWT 필요
+    private val productsApiService: com.example.myapplication.network.ProductsApiService by lazy {
+        com.example.myapplication.network.RetrofitClient.productsApiService
     }
 
     private val networkUtils: NetworkUtils by lazy {
@@ -339,14 +356,14 @@ class HairstyleRepository(
      * @param imageUri 사용자 얼굴 사진 URI
      * @param hairstyleName 적용할 헤어스타일 이름 (예: 투블럭컷)
      * @param gender 성별 (male/female)
-     * @return 합성된 이미지 Bitmap 또는 에러
+     * @return 합성된 이미지 + 스타일 맞춤 제휴 제품(SynthesisResult) 또는 에러
      */
     suspend fun synthesizeHairstyle(
         imageUri: Uri,
         hairstyleName: String,
         gender: String = "male",
         deviceId: String
-    ): ApiResult<Bitmap> = withContext(Dispatchers.IO) {
+    ): ApiResult<SynthesisResult> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🎨 헤어스타일 합성 시작")
             Log.d(TAG, "   - 스타일: $hairstyleName")
@@ -408,8 +425,16 @@ class HairstyleRepository(
                         return@withContext ApiResult.Error("이미지 디코딩 실패\n[$debugInfo]")
                     }
 
+                    // 제휴 제품 추천 (없거나 빈 배열이면 UI에서 섹션 숨김)
+                    Log.d(TAG, "🛍️ 추천 제품 ${synthesisResponse.recommendedProducts.size}개 수신")
                     Log.d(TAG, "✅ 합성 완료 (${synthesisResponse.processingTime}초)")
-                    ApiResult.Success(bitmap)
+                    ApiResult.Success(
+                        SynthesisResult(
+                            image = bitmap,
+                            recommendedProducts = synthesisResponse.recommendedProducts,
+                            disclosure = synthesisResponse.disclosure
+                        )
+                    )
                 } catch (e: Exception) {
                     Log.e(TAG, "❌ Base64 디코딩 실패: ${e.message}")
                     return@withContext ApiResult.Error("이미지 처리에 실패했습니다")
@@ -425,6 +450,41 @@ class HairstyleRepository(
             ApiResult.Error(networkError.toUserFriendlyMessage())
         }
     }
+
+    /**
+     * 제휴 제품 클릭 → 제휴 링크 발급 (POST /api/products/click, JWT 필요)
+     *
+     * 클릭 로그는 서버가 기록하므로 반드시 매번 이 API를 경유해야 한다.
+     * (제휴 링크 하드코딩/로컬 캐싱 금지)
+     *
+     * - 성공: affiliate_url 포함 응답
+     * - 404: 존재하지 않는 제품 → code=404 에러로 반환 (UI에서 무시+토스트)
+     */
+    suspend fun clickProduct(request: ProductClickRequest): ApiResult<ProductClickResponse> =
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "🛍️ 제휴 링크 발급 요청: ${request.productId} (source=${request.source})")
+                val response = productsApiService.clickProduct(request)
+
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    if (body.success && !body.affiliateUrl.isNullOrBlank()) {
+                        Log.d(TAG, "✅ 제휴 링크 발급 성공")
+                        ApiResult.Success(body)
+                    } else {
+                        Log.w(TAG, "❌ 제휴 링크 응답에 URL 없음")
+                        ApiResult.Error("제품 링크를 불러오지 못했어요", response.code())
+                    }
+                } else {
+                    Log.w(TAG, "❌ 제휴 링크 발급 실패 (${response.code()})")
+                    ApiResult.Error("제품 링크를 불러오지 못했어요", response.code())
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ 제휴 링크 발급 예외: ${e.message}")
+                val networkError = e.toNetworkError()
+                ApiResult.Error(networkError.toUserFriendlyMessage())
+            }
+        }
 
     /**
      * ✅ v33: 퍼스널컬러 기반 염색색 추천 조회

@@ -92,8 +92,9 @@ data class Recommendation(
     val style_name: String,
     val reason: String,
     val score: Double? = null,  // ✅ v23: ML 예측 점수
-    val image_search_url: String? = null,  // ✅ v20: 네이버 이미지 검색 URL
-    val source: String = "ml"  // ✅ v35: 추천 소스 ("ml" 또는 "trend")
+    val image_search_url: String? = null,  // ✅ v20: 네이버 이미지 검색 URL (더 이상 UI에서 사용 안 함)
+    val source: String = "ml",  // ✅ v35: 추천 소스 ("ml" 또는 "trend")
+    val image_url: String? = null  // ✅ v36: AI 예시 이미지 절대 URL (WebP 3:4, 매핑 없으면 null)
 ) {
     /**
      * 앱의 HairstyleRecommendation으로 변환
@@ -107,7 +108,8 @@ data class Recommendation(
             score = score, // ✅ v35: nullable 그대로 전달 (트렌드는 null)
             reason = reason,
             imageSearchUrl = image_search_url,  // ✅ v27: 네이버 검색 URL (성별 접두사 포함)
-            source = source  // ✅ v35: 추천 소스 전달
+            source = source,  // ✅ v35: 추천 소스 전달
+            imageUrl = image_url  // ✅ v36: AI 예시 이미지 URL 전달
         )
     }
 }
@@ -141,5 +143,11 @@ data class SynthesisResponse(
     val imageFormat: String? = null,  // 이미지 포맷 (png, jpg 등)
     val message: String? = null,
     @SerializedName("processing_time")
-    val processingTime: Double? = null
+    val processingTime: Double? = null,
+    // ✅ 제휴 제품 추천 (최대 3개, 빈 배열 가능).
+    //    구버전 서버는 필드 자체가 없을 수 있으므로 기본값 emptyList로 안전 파싱.
+    @SerializedName("recommended_products")
+    val recommendedProducts: List<RecommendedProduct> = emptyList(),
+    // 대가성 문구: 서버가 함께 내려주면 그대로 사용, 없으면 UI에서 표준 문구로 폴백
+    val disclosure: String? = null
 )

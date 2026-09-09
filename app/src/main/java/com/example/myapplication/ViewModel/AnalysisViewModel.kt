@@ -36,7 +36,14 @@ sealed class AnalysisUiState {
 sealed class SynthesisUiState {
     object Idle : SynthesisUiState()
     data class Loading(val hairstyleName: String) : SynthesisUiState()
-    data class Success(val synthesizedImage: Bitmap, val hairstyleName: String) : SynthesisUiState()
+    data class Success(
+        val synthesizedImage: Bitmap,
+        val hairstyleName: String,
+        // 스타일 맞춤 제휴 제품 (최대 3개, 빈 배열이면 UI에서 섹션 숨김)
+        val recommendedProducts: List<com.example.myapplication.network.RecommendedProduct> = emptyList(),
+        // 대가성 문구 (서버 제공값 우선, null이면 UI에서 표준 문구 폴백)
+        val disclosure: String? = null
+    ) : SynthesisUiState()
     data class Error(val message: String) : SynthesisUiState()
 }
 
@@ -315,8 +322,10 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
                     Log.d(TAG, "✅ 헤어스타일 합성 성공: $hairstyleName")
                     consumeUsage()
                     _synthesisState.value = SynthesisUiState.Success(
-                        synthesizedImage = result.data,
-                        hairstyleName = hairstyleName
+                        synthesizedImage = result.data.image,
+                        hairstyleName = hairstyleName,
+                        recommendedProducts = result.data.recommendedProducts,
+                        disclosure = result.data.disclosure
                     )
                 }
                 is ApiResult.Error -> {
@@ -333,6 +342,58 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
     fun resetSynthesisState() {
         Log.d(TAG, "합성 상태 초기화: Idle로 변경")
         _synthesisState.value = SynthesisUiState.Idle
+    }
+
+    /**
+     * 최근 분석 결과 스냅샷 (클릭 요청의 hair_profile용). 분석 전이면 null.
+     */
+    private fun currentHairProfile(): com.example.myapplication.network.HairProfile? {
+        val success = _uiState.value as? AnalysisUiState.Success ?: return null
+        return com.example.myapplication.network.HairProfile(
+            faceShape = success.data.face_shape,
+            personalColor = success.data.skin_tone,
+            gender = currentGender
+        )
+    }
+
+    /**
+     * 제휴 제품 카드 탭 → 서버에서 제휴 링크 발급 후 외부 브라우저로 열기.
+     *
+     * 호출 측(로그인 상태 확인 완료)에서 실행하며, 링크 발급은 반드시 매번 이 API를 경유한다.
+     * 실패(네트워크/404 등)는 합성 결과 화면을 깨뜨리지 않도록 onFailure로 조용히 처리.
+     *
+     * @param onLink 발급된 affiliate_url (메인 스레드에서 호출됨) → 외부 브라우저 오픈
+     * @param onFailure 실패 시 (짧은 토스트 등)
+     */
+    fun openProductLink(
+        product: com.example.myapplication.network.RecommendedProduct,
+        style: String,
+        source: String,
+        onLink: (url: String) -> Unit,
+        onFailure: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val request = com.example.myapplication.network.ProductClickRequest(
+                productId = product.productId,
+                style = style,
+                source = source,
+                hairProfile = currentHairProfile()
+            )
+            when (val result = repository.clickProduct(request)) {
+                is ApiResult.Success -> {
+                    val url = result.data.affiliateUrl
+                    if (!url.isNullOrBlank()) {
+                        onLink(url)
+                    } else {
+                        onFailure()
+                    }
+                }
+                is ApiResult.Error -> {
+                    Log.w(TAG, "❌ 제휴 링크 발급 실패: ${result.message} (code=${result.code})")
+                    onFailure()
+                }
+            }
+        }
     }
 
     // ========================================

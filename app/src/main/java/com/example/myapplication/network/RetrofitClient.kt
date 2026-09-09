@@ -76,9 +76,29 @@ object RetrofitClient {
         .build()
 
     /**
+     * Hairstyle Lambda용 OkHttp 클라이언트 (서버 JWT 인증)
+     * - AuthInterceptor: 토큰이 있으면 Authorization: Bearer 자동 첨부
+     * - TokenAuthenticator: 401 시 /api/auth/refresh로 자동 갱신 → 실패하면 토큰 삭제(로그아웃)
+     */
+    private val hairstyleOkHttpClient = okHttpClient.newBuilder()
+        .addInterceptor(AuthInterceptor())
+        .authenticator(TokenAuthenticator())
+        .build()
+
+    /**
      * Hairstyle Lambda용 Retrofit 인스턴스
      */
     private val hairstyleRetrofit: Retrofit = Retrofit.Builder()
+        .baseUrl(HAIRSTYLE_BASE_URL)
+        .client(hairstyleOkHttpClient)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    /**
+     * 토큰 리프레시 전용 Retrofit 인스턴스
+     * ⚠️ AuthInterceptor/Authenticator가 없는 기본 클라이언트 사용 (무한 재귀 방지)
+     */
+    private val tokenRefreshRetrofit: Retrofit = Retrofit.Builder()
         .baseUrl(HAIRSTYLE_BASE_URL)
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
@@ -110,6 +130,30 @@ object RetrofitClient {
      * 일일 무료 합성 횟수 관리에 사용 (Hairstyle Lambda 호스팅)
      */
     val usageApiService: UsageApiService = hairstyleRetrofit.create(UsageApiService::class.java)
+
+    /**
+     * AuthApiService 인스턴스
+     * 카카오 로그인, 내 정보 조회, 동의 변경에 사용 (Hairstyle Lambda 호스팅)
+     */
+    val authApiService: AuthApiService = hairstyleRetrofit.create(AuthApiService::class.java)
+
+    /**
+     * TokenRefreshApiService 인스턴스
+     * TokenAuthenticator가 동기 호출로 사용 (인증 인터셉터 없는 클라이언트)
+     */
+    val tokenRefreshApiService: TokenRefreshApiService = tokenRefreshRetrofit.create(TokenRefreshApiService::class.java)
+
+    /**
+     * ProductsApiService 인스턴스
+     * 제휴 제품 추천/클릭에 사용 (Hairstyle Lambda 호스팅, 클릭은 JWT 필요)
+     */
+    val productsApiService: ProductsApiService = hairstyleRetrofit.create(ProductsApiService::class.java)
+
+    /**
+     * MyResultsApiService 인스턴스
+     * 회원 합성 결과 히스토리 조회에 사용 (Hairstyle Lambda 호스팅, JWT 필수)
+     */
+    val myResultsApiService: MyResultsApiService = hairstyleRetrofit.create(MyResultsApiService::class.java)
 
     /**
      * 카카오 API용 OkHttp 클라이언트

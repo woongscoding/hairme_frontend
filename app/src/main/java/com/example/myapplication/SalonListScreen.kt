@@ -8,57 +8,54 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.List
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.myapplication.network.KakaoLocalSearchResponse
 import com.example.myapplication.network.Place
 import com.example.myapplication.network.RetrofitClient
+import com.example.myapplication.ui.theme.Atelier
+import com.example.myapplication.ui.theme.AtelierTopBar
+import com.example.myapplication.ui.theme.atelierSerif
 import com.example.myapplication.util.AnalyticsHelper
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.launch
 
 /**
- * SalonListScreen - 주변 미용실 검색 및 표시
+ * SalonListScreen - 주변 미용실 검색 및 표시 (Atelier 리디자인)
  *
- * 기능:
+ * 기능(기존 로직 유지):
  * 1. GPS로 현재 위치 수집
  * 2. 카카오 로컬 API로 주변 미용실 검색
  * 3. 거리순으로 정렬된 리스트 표시
  * 4. 클릭 시 카카오맵 앱으로 이동
+ *
+ * UI: 상단 260dp 고정 지도(카카오맵 WebView) + my_location FAB + 헤어라인 구분 리스트
  */
 
-// 색상 상수
-private object SalonColors {
-    val Background = Color.White
-    val Primary = Color(0xFF5B4FFF)
-    val CardBackground = Color(0xFFF8F7FF)
-    val KakaoYellow = Color(0xFFFEE500)
-    val TextPrimary = Color.Black
-    val TextSecondary = Color(0xFF666666)
-    val TextTertiary = Color(0xFF999999)
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SalonListScreen(
     styleName: String,
@@ -72,7 +69,30 @@ fun SalonListScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var currentLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
-    var isMapView by remember { mutableStateOf(false) } // 지도 보기 상태
+
+    // 위치 재조회 + 재검색 (진입 시/FAB 클릭 시 공용)
+    val refreshSearch: () -> Unit = {
+        isLoading = true
+        errorMessage = null
+        fetchCurrentLocation(context) { lat, lng ->
+            currentLocation = Pair(lat, lng)
+            scope.launch {
+                searchSalons(
+                    styleName = styleName,
+                    latitude = lat,
+                    longitude = lng,
+                    onResult = { result ->
+                        salons = result
+                        isLoading = false
+                    },
+                    onError = { error ->
+                        errorMessage = error
+                        isLoading = false
+                    }
+                )
+            }
+        }
+    }
 
     // GPS 권한 요청
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -82,28 +102,7 @@ fun SalonListScreen(
         val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
 
         if (fineLocationGranted || coarseLocationGranted) {
-            // 권한 승인 → 위치 가져오기
-            scope.launch {
-                fetchCurrentLocation(context) { lat, lng ->
-                    currentLocation = Pair(lat, lng)
-                    // 위치를 받으면 자동으로 미용실 검색
-                    scope.launch {
-                        searchSalons(
-                            styleName = styleName,
-                            latitude = lat,
-                            longitude = lng,
-                            onResult = { result ->
-                                salons = result
-                                isLoading = false
-                            },
-                            onError = { error ->
-                                errorMessage = error
-                                isLoading = false
-                            }
-                        )
-                    }
-                }
-            }
+            refreshSearch()
         } else {
             Toast.makeText(context, "위치 권한이 필요합니다", Toast.LENGTH_SHORT).show()
         }
@@ -123,28 +122,8 @@ fun SalonListScreen(
         if (fineLocationPermission == PackageManager.PERMISSION_GRANTED ||
             coarseLocationPermission == PackageManager.PERMISSION_GRANTED
         ) {
-            // 이미 권한이 있음 → 바로 위치 가져오기
-            isLoading = true
-            fetchCurrentLocation(context) { lat, lng ->
-                currentLocation = Pair(lat, lng)
-                scope.launch {
-                    searchSalons(
-                        styleName = styleName,
-                        latitude = lat,
-                        longitude = lng,
-                        onResult = { result ->
-                            salons = result
-                            isLoading = false
-                        },
-                        onError = { error ->
-                            errorMessage = error
-                            isLoading = false
-                        }
-                    )
-                }
-            }
+            refreshSearch()
         } else {
-            // 권한 요청
             locationPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -154,77 +133,74 @@ fun SalonListScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "주변 미용실",
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Atelier.Background)
+            .statusBarsPadding()
+    ) {
+        AtelierTopBar(
+            title = "주변 미용실",
+            navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
+            navigationContentDescription = "뒤로가기",
+            onNavigationClick = onBackClick,
+            actions = {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = refreshSearch),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "다시 검색",
+                        tint = Atelier.Ink,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        )
+
+        when {
+            isLoading -> LoadingIndicator()
+            errorMessage != null -> ErrorMessage(errorMessage!!)
+            salons.isEmpty() -> EmptyMessage()
+            else -> {
+                // 지도 영역: 상단 260dp 고정 (카카오맵 WebView 유지)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp)
+                ) {
+                    SalonMapView(
+                        salons = salons,
+                        currentLocation = currentLocation,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // 우하단 흰 원형 my_location FAB
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(14.dp)
+                            .size(44.dp)
+                            .background(Atelier.Surface, CircleShape)
+                            .border(1.dp, Atelier.Border, CircleShape)
+                            .clip(CircleShape)
+                            .clickable(onClick = refreshSearch),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MyLocation,
+                            contentDescription = "내 위치에서 다시 검색",
+                            tint = Atelier.Ink,
+                            modifier = Modifier.size(20.dp)
                         )
-                        if (styleName.isNotEmpty() && styleName != "주변 미용실") {
-                            Text(
-                                text = "$styleName 전문",
-                                fontSize = 12.sp,
-                                color = SalonColors.TextSecondary
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로가기")
-                    }
-                },
-                actions = {
-                    // 지도/리스트 전환 버튼
-                    if (salons.isNotEmpty()) {
-                        IconButton(onClick = { isMapView = !isMapView }) {
-                            Icon(
-                                imageVector = if (isMapView) Icons.AutoMirrored.Outlined.List else Icons.Outlined.Map,
-                                contentDescription = if (isMapView) "리스트 보기" else "지도 보기",
-                                tint = SalonColors.Primary
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = SalonColors.Background
-                )
-            )
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(SalonColors.Background)
-                .padding(padding)
-        ) {
-            when {
-                isLoading -> {
-                    LoadingIndicator()
-                }
-                errorMessage != null -> {
-                    ErrorMessage(errorMessage!!)
-                }
-                salons.isEmpty() -> {
-                    EmptyMessage()
-                }
-                else -> {
-                    // 지도 보기 / 리스트 보기 전환
-                    if (isMapView) {
-                        // 카카오맵 사용
-                        SalonMapView(
-                            salons = salons,
-                            currentLocation = currentLocation
-                        )
-                    } else {
-                        SalonList(salons = salons)
                     }
                 }
+
+                SalonList(salons = salons)
             }
         }
     }
@@ -239,11 +215,15 @@ private fun LoadingIndicator() {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            CircularProgressIndicator(color = SalonColors.Primary)
+            CircularProgressIndicator(
+                color = Atelier.BrandViolet,
+                trackColor = Atelier.Divider
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "주변 미용실 검색 중...",
-                color = SalonColors.TextSecondary
+                fontSize = 14.sp,
+                color = Atelier.TextSecondary
             )
         }
     }
@@ -260,16 +240,17 @@ private fun ErrorMessage(message: String) {
             modifier = Modifier.padding(24.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Error,
+                imageVector = Icons.Outlined.ErrorOutline,
                 contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = Color.Red
+                modifier = Modifier.size(48.dp),
+                tint = Atelier.TrendAccent
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = message,
-                color = SalonColors.TextSecondary,
-                fontSize = 16.sp
+                fontSize = 14.sp,
+                lineHeight = 21.sp,
+                color = Atelier.TextSecondary
             )
         }
     }
@@ -288,14 +269,14 @@ private fun EmptyMessage() {
             Icon(
                 imageVector = Icons.Default.SearchOff,
                 contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = SalonColors.TextTertiary
+                modifier = Modifier.size(48.dp),
+                tint = Atelier.Chevron
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "주변에 미용실이 없습니다",
-                color = SalonColors.TextSecondary,
-                fontSize = 16.sp
+                fontSize = 14.sp,
+                color = Atelier.TextSecondary
             )
         }
     }
@@ -305,135 +286,104 @@ private fun EmptyMessage() {
 private fun SalonList(salons: List<Place>) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
-            Text(
-                text = "총 ${salons.size}개의 미용실",
-                fontSize = 14.sp,
-                color = SalonColors.TextSecondary,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            // 리스트 헤더: Serif "내 주변 N곳" + "거리순"
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "내 주변 ${salons.size}곳",
+                    style = atelierSerif(size = 17)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "거리순",
+                    fontSize = 12.sp,
+                    color = Atelier.TextTertiary
+                )
+            }
         }
 
         items(salons) { salon ->
-            SalonCard(salon = salon)
+            SalonRow(salon = salon, showTopBorder = true)
         }
     }
 }
 
 @Composable
-private fun SalonCard(salon: Place) {
+private fun SalonRow(salon: Place, showTopBorder: Boolean) {
     val context = LocalContext.current
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                // 카카오맵 앱 또는 웹 열기
-                AnalyticsHelper.logSalonClick(salon.place_name)
-                openKakaoMap(context, salon.place_url)
-            },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = SalonColors.CardBackground),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
+    Column {
+        if (showTopBorder) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Atelier.Border)
+            )
+        }
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // 미용실 이름
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = salon.place_name,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = SalonColors.TextPrimary,
-                    modifier = Modifier.weight(1f)
-                )
-                if (salon.distance.isNotEmpty()) {
-                    Text(
-                        text = "${salon.distance}m",
-                        fontSize = 14.sp,
-                        color = SalonColors.Primary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 주소
-            Row(
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = SalonColors.TextTertiary
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = salon.road_address_name.ifEmpty { salon.address_name },
-                    fontSize = 14.sp,
-                    color = SalonColors.TextSecondary,
-                    lineHeight = 20.sp
-                )
-            }
-
-            // 전화번호
-            if (salon.phone.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Phone,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = SalonColors.TextTertiary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = salon.phone,
-                        fontSize = 14.sp,
-                        color = SalonColors.TextSecondary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 카카오맵에서 보기 버튼
-            Button(
-                onClick = {
+                .clickable {
+                    // 카카오맵 앱 또는 웹 열기 (기존 로직 유지)
+                    AnalyticsHelper.logSalonClick(salon.place_name)
                     openKakaoMap(context, salon.place_url)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SalonColors.KakaoYellow,
-                    contentColor = Color.Black
-                ),
-                shape = RoundedCornerShape(8.dp)
+                }
+                .padding(horizontal = 24.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // 56dp 썸네일 자리 (radius 2dp)
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Atelier.Divider, Atelier.ThumbShape),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Map,
+                    imageVector = Icons.Default.ContentCut,
                     contentDescription = null,
+                    tint = Atelier.Chevron,
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "카카오맵에서 보기",
-                    fontWeight = FontWeight.Medium
+                    text = salon.place_name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Atelier.Ink
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = buildList {
+                        if (salon.distance.isNotEmpty()) add("${salon.distance}m")
+                        add(salon.road_address_name.ifEmpty { salon.address_name })
+                        if (salon.phone.isNotEmpty()) add(salon.phone)
+                    }.joinToString(" · "),
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    color = Atelier.TextTertiary
                 )
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Atelier.Chevron,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

@@ -39,15 +39,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- ================================ -->
-    <!-- 갤러리 접근 권한 (API 레벨별 분기) -->
+    <!-- 갤러리 접근: 시스템 Photo Picker 사용 (Play 정책) -->
+    <!-- READ_MEDIA_* 권한은 라이브러리가 병합해도 최종 매니페스트에서 제거 -->
     <!-- ================================ -->
-    <!-- Android 12 (API 32) 이하 -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-
-    <!-- Android 13 (API 33) 이상 -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove" />
 
     <!-- ================================ -->
     <!-- ✅ 외부 브라우저 실행을 위한 queries (Android 11+) -->
@@ -107,6 +105,18 @@
         <meta-data
             android:name="com.kakao.sdk.AppKey"
             android:value="${KAKAO_NATIVE_APP_KEY}" />
+
+        <!-- 카카오 로그인 리다이렉트 (kakao{NATIVE_APP_KEY}://oauth) -->
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:host="oauth" android:scheme="kakao${KAKAO_NATIVE_APP_KEY}" />
+            </intent-filter>
+        </activity>
 
     </application>
 

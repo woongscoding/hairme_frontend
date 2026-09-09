@@ -24,6 +24,7 @@ data class HairstyleRecommendation(
     val name: String,
     val score: Double? = null,  // ✅ v35: nullable (트렌드 스타일은 score 없음)
     val reason: String,
-    val imageSearchUrl: String? = null,  // ✅ v27: 네이버 검색 URL (성별 접두사 포함)
-    val source: String = "ml"  // ✅ v35: 추천 소스 ("ml" 또는 "trend")
+    val imageSearchUrl: String? = null,  // ✅ v27: 네이버 검색 URL (더 이상 UI에서 사용 안 함)
+    val source: String = "ml",  // ✅ v35: 추천 소스 ("ml" 또는 "trend")
+    val imageUrl: String? = null  // ✅ v36: AI 예시 이미지 절대 URL (매핑 없으면 null)
 )

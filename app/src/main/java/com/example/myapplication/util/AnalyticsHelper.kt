@@ -176,4 +176,12 @@ object AnalyticsHelper {
             putString("method", method) // "system_share" 등
         })
     }
+
+    /** 제휴 제품 카드 클릭 (전환 분석). 실제 링크 발급/오픈 여부와 무관하게 탭 시점 기록 */
+    fun logProductClick(productId: String, styleName: String) {
+        firebaseAnalytics?.logEvent("product_click", Bundle().apply {
+            putString("product_id", productId)
+            putString("style_name", styleName)
+        })
+    }
 }

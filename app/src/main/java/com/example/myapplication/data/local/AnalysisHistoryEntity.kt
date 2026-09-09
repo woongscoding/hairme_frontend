@@ -47,7 +47,7 @@ data class AnalysisHistoryEntity(
             result: AnalysisResult
         ): AnalysisHistoryEntity {
             val recommendationsJson = result.recommended_styles.joinToString("|||") { rec ->
-                "${rec.name}::${rec.score ?: ""}::${rec.reason}::${rec.source}"
+                "${rec.name}::${rec.score ?: ""}::${rec.reason}::${rec.source}::${rec.imageUrl ?: ""}"
             }
             return AnalysisHistoryEntity(
                 analysisId = analysisId,
@@ -70,7 +70,8 @@ data class AnalysisHistoryEntity(
                         name = parts[0],
                         score = parts[1].toDoubleOrNull(), // ✅ v35: nullable (빈 문자열→null)
                         reason = parts[2],
-                        source = if (parts.size >= 4) parts[3] else "ml" // ✅ v35: 하위 호환
+                        source = if (parts.size >= 4) parts[3] else "ml", // ✅ v35: 하위 호환
+                        imageUrl = parts.getOrNull(4)?.takeIf { it.isNotBlank() } // ✅ v36: 하위 호환
                     )
                 } else null
             }
