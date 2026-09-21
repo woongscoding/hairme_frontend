@@ -17,12 +17,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- ================================ -->
-    <!-- 광고 ID 사용 안 함 (Firebase 등 의존성에서 병합되는 권한 제거) -->
+    <!-- 광고 ID (AdMob 보상형 광고에 필수) -->
+    <!-- 제거하면 광고 요청이 채워지지 않는다 -->
     <!-- ================================ -->
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID"
-        tools:node="remove" />
-    <uses-permission android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
-        tools:node="remove" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <!-- ================================ -->
     <!-- GPS 위치 권한 (미용실 찾기 기능) -->
@@ -105,6 +103,20 @@
         <meta-data
             android:name="com.kakao.sdk.AppKey"
             android:value="${KAKAO_NATIVE_APP_KEY}" />
+
+        <!-- AdMob 앱 ID (없으면 SDK 초기화 시 앱이 크래시한다) -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${ADMOB_APP_ID}" />
+
+        <!--
+            Firebase Analytics(ga_ad_services_config)와 AdMob(gma_ad_services_config)이
+            같은 property를 선언해 매니페스트 병합이 충돌한다. 광고를 쓰므로 AdMob 쪽을 채택.
+        -->
+        <property
+            android:name="android.adservices.AD_SERVICES_CONFIG"
+            android:resource="@xml/gma_ad_services_config"
+            tools:replace="android:resource" />
 
         <!-- 카카오 로그인 리다이렉트 (kakao{NATIVE_APP_KEY}://oauth) -->
         <activity

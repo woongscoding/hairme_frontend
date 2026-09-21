@@ -6,6 +6,7 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import com.example.myapplication.data.auth.TokenManager
 import com.example.myapplication.util.AnalyticsHelper
+import com.example.myapplication.util.RewardedAdManager
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.kakao.sdk.common.KakaoSdk
 import com.kakao.vectormap.KakaoMapSdk
@@ -48,5 +49,9 @@ class HairMeApplication : Application(), ImageLoaderFactory {
         // Firebase Analytics 초기화
         FirebaseAnalytics.getInstance(this)
         AnalyticsHelper.init(this)
+
+        // AdMob SDK 초기화 (보상형 광고)
+        // initialize()는 디스크 I/O를 동반해 메인 스레드를 수백 ms 붙잡으므로 백그라운드에서
+        RewardedAdManager.initialize(this)
     }
 }

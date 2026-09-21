@@ -1,7 +1,10 @@
 package com.example.myapplication
 
 import android.Manifest
+import android.app.Activity
 import android.app.Application
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
@@ -26,6 +29,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.example.myapplication.util.RewardedAdManager
 import com.example.myapplication.ui.screens.HomeScreen
 import com.example.myapplication.PhotoSelectionScreen
 import com.example.myapplication.PhotoConfirmScreen
@@ -135,6 +139,15 @@ fun HairMeApp(
         }
     }
 
+    // ✅ 광고 보상 결과 안내 (일회성)
+    val rewardMessage by authViewModel.rewardMessage.collectAsStateWithLifecycle()
+    LaunchedEffect(rewardMessage) {
+        rewardMessage?.let {
+            Toast.makeText(activityContext, it, Toast.LENGTH_LONG).show()
+            authViewModel.consumeRewardMessage()
+        }
+    }
+
     // ✅ 신규 가입 환영 다이얼로그
     val welcomeUser by authViewModel.welcomeUser.collectAsStateWithLifecycle()
     welcomeUser?.let { user ->
@@ -162,9 +175,11 @@ fun HairMeApp(
         composable("home") {
             val usageState by viewModel.usageState.collectAsStateWithLifecycle()
             val authUiState by authViewModel.uiState.collectAsStateWithLifecycle()
+            val isWaitingReward by authViewModel.isWaitingReward.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) {
                 AnalyticsHelper.logScreenView("HomeScreen")
                 viewModel.fetchUsage() // 퀵 엔트리 "오늘 무료 N회 남음" 표시용
+                RewardedAdManager.load(activityContext) // 버튼을 눌렀을 때 바로 뜨도록 미리 받아둠
             }
             HomeScreen(
                 usageRemaining = usageState.remaining,
@@ -187,7 +202,29 @@ fun HairMeApp(
                 },
                 onMyResultsClick = {
                     navController.navigate("my_results")
-                }
+                },
+                onWatchAdClick = {
+                    val userId = (authUiState as? AuthUiState.LoggedIn)?.user?.userId
+                    val activity = activityContext.findActivity()
+                    when {
+                        // user_id가 없으면 서버가 지급 대상을 못 정하므로 광고를 띄우지 않는다
+                        userId.isNullOrBlank() || activity == null ->
+                            Toast.makeText(
+                                activityContext,
+                                "로그인 후 이용할 수 있어요",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        else -> RewardedAdManager.show(
+                            activity = activity,
+                            userId = userId,
+                            onRewarded = { authViewModel.refreshCreditsAfterReward() },
+                            onFailed = { message ->
+                                Toast.makeText(activityContext, message, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                },
+                isWaitingReward = isWaitingReward
             )
         }
 
@@ -619,4 +656,16 @@ fun PhotoConfirmScreenWrapper(
             viewModel.analyzeImage(imageUri, selectedGender) // 성별 파라미터 추가
         }
     )
+}
+/**
+ * Compose의 LocalContext는 ContextWrapper로 감싸여 있을 수 있어
+ * 전면 광고 표시에 필요한 Activity를 풀어서 꺼낸다.
+ */
+private fun Context.findActivity(): Activity? {
+    var context: Context? = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
 }

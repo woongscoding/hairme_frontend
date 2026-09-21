@@ -138,6 +138,12 @@ object RetrofitClient {
     val authApiService: AuthApiService = hairstyleRetrofit.create(AuthApiService::class.java)
 
     /**
+     * CreditsApiService 인스턴스
+     * 크레딧 잔액 조회에 사용 (Hairstyle Lambda 호스팅, JWT 필요)
+     */
+    val creditsApiService: CreditsApiService = hairstyleRetrofit.create(CreditsApiService::class.java)
+
+    /**
      * TokenRefreshApiService 인스턴스
      * TokenAuthenticator가 동기 호출로 사용 (인증 인터셉터 없는 클라이언트)
      */

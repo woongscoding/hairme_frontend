@@ -80,6 +80,11 @@ class HairstyleRepository(
 
     companion object {
         private const val TAG = "HairstyleRepository"
+
+        /** 서버가 크레딧 부족 시 내려주는 코드 (core/quota.py) */
+        const val HTTP_INSUFFICIENT_CREDITS = 402
+        private const val INSUFFICIENT_CREDITS_MESSAGE =
+            "크레딧을 모두 사용했어요. 광고를 보고 크레딧을 받아보세요."
         private const val MAX_IMAGE_WIDTH = 1024
         private const val MAX_IMAGE_HEIGHT = 1024
         private const val JPEG_QUALITY = 85
@@ -442,7 +447,12 @@ class HairstyleRepository(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "서버 오류"
                 Log.e(TAG, "❌ API 실패 (${response.code()}): $errorMsg")
-                ApiResult.Error("서버 오류: $errorMsg", response.code())
+                // 402 = 서버가 크레딧 부족으로 거부 (core/quota.py) - UI에서 광고 CTA를 띄운다
+                if (response.code() == HTTP_INSUFFICIENT_CREDITS) {
+                    ApiResult.Error(INSUFFICIENT_CREDITS_MESSAGE, HTTP_INSUFFICIENT_CREDITS)
+                } else {
+                    ApiResult.Error("서버 오류: $errorMsg", response.code())
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ 예외 발생: ${e.message}", e)
@@ -603,7 +613,12 @@ class HairstyleRepository(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "서버 오류"
                 Log.e(TAG, "❌ API 실패 (${response.code()}): $errorMsg")
-                ApiResult.Error("서버 오류: $errorMsg", response.code())
+                // 402 = 서버가 크레딧 부족으로 거부 (core/quota.py) - UI에서 광고 CTA를 띄운다
+                if (response.code() == HTTP_INSUFFICIENT_CREDITS) {
+                    ApiResult.Error(INSUFFICIENT_CREDITS_MESSAGE, HTTP_INSUFFICIENT_CREDITS)
+                } else {
+                    ApiResult.Error("서버 오류: $errorMsg", response.code())
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ 예외 발생: ${e.message}", e)

@@ -13,6 +13,7 @@ import com.kakao.sdk.auth.model.OAuthToken
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
 import com.kakao.sdk.user.UserApiClient
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,6 +48,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private const val TAG = "AuthViewModel"
+
+        // 광고 보상은 AdMob → 서버 SSV 콜백으로 비동기 지급되므로 바로 조회하면 아직 0일 수 있다
+        private const val REWARD_POLL_ATTEMPTS = 5
+        private const val REWARD_FIRST_DELAY_MS = 800L
+        private const val REWARD_RETRY_DELAY_MS = 1500L
     }
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Initializing)
@@ -59,6 +65,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     /** 신규 가입 환영 다이얼로그용 (null이 아니면 표시) */
     private val _welcomeUser = MutableStateFlow<AuthUser?>(null)
     val welcomeUser: StateFlow<AuthUser?> = _welcomeUser.asStateFlow()
+
+    /** 광고 보상 결과 안내 (스낵바 표시 후 consumeRewardMessage() 호출) */
+    private val _rewardMessage = MutableStateFlow<String?>(null)
+    val rewardMessage: StateFlow<String?> = _rewardMessage.asStateFlow()
+
+    /** 광고 시청 후 서버 지급을 기다리는 중 (버튼 중복 클릭 방지) */
+    private val _isWaitingReward = MutableStateFlow(false)
+    val isWaitingReward: StateFlow<Boolean> = _isWaitingReward.asStateFlow()
 
     init {
         tryAutoLogin()
@@ -184,6 +198,43 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * 보상형 광고 시청 완료 후 크레딧 반영 대기 + 갱신
+     *
+     * 크레딧을 지급하는 주체는 앱이 아니라 서버(AdMob SSV 콜백)다.
+     * 시청 직후에는 아직 반영 전일 수 있어 잔액이 오를 때까지 몇 번 재조회한다.
+     */
+    fun refreshCreditsAfterReward() {
+        val before = (_uiState.value as? AuthUiState.LoggedIn)?.user?.credits ?: return
+        _isWaitingReward.value = true
+
+        viewModelScope.launch {
+            try {
+                repeat(REWARD_POLL_ATTEMPTS) { attempt ->
+                    delay(if (attempt == 0) REWARD_FIRST_DELAY_MS else REWARD_RETRY_DELAY_MS)
+
+                    val result = repository.getCreditBalance()
+                    if (result !is ApiResult.Success) return@repeat
+
+                    val state = _uiState.value as? AuthUiState.LoggedIn ?: return@launch
+                    _uiState.value = AuthUiState.LoggedIn(state.user.copy(credits = result.data))
+
+                    if (result.data > before) {
+                        Log.d(TAG, "✅ 광고 보상 반영: $before → ${result.data}")
+                        _rewardMessage.value = "크레딧 1개가 지급됐어요!"
+                        return@launch
+                    }
+                }
+                // 일일 상한(5회)에 걸렸거나 지급이 지연된 경우
+                Log.w(TAG, "⚠️ 광고 보상이 아직 반영되지 않음")
+                _rewardMessage.value =
+                    "지급이 조금 지연되고 있어요. 잠시 후 확인해 주세요. (하루 5회까지 받을 수 있어요)"
+            } finally {
+                _isWaitingReward.value = false
+            }
+        }
+    }
+
+    /**
      * 내 정보 재조회 (크레딧 갱신 등)
      */
     fun refreshUser() {
@@ -202,5 +253,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun consumeWelcome() {
         _welcomeUser.value = null
+    }
+
+    fun consumeRewardMessage() {
+        _rewardMessage.value = null
     }
 }

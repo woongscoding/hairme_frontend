@@ -52,6 +52,12 @@ android {
         val kakaoNativeAppKey = localProperties.getProperty("kakao.native.app.key") ?: ""
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoNativeAppKey\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKey
+
+        // ================================
+        // AdMob 앱 ID (비밀값 아님 - APK에 그대로 담기는 공개 식별자)
+        // 광고 단위 ID는 RewardedAdManager 참고 (디버그 빌드는 테스트 광고 사용)
+        // ================================
+        manifestPlaceholders["ADMOB_APP_ID"] = "ca-app-pub-1902190021810378~6750985727"
     }
 
     // ================================
@@ -183,9 +189,14 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // ================================
-    // Google Play Services (GPS 위치만)
+    // Google Play Services (GPS 위치)
     // ================================
     implementation("com.google.android.gms:play-services-location:21.0.1")
+
+    // ================================
+    // AdMob (보상형 광고 - 크레딧 충전)
+    // ================================
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     // ================================
     // Dependency Injection (Hilt) - 임시 비활성화

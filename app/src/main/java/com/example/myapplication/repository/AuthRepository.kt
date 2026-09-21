@@ -23,6 +23,10 @@ class AuthRepository {
         RetrofitClient.authApiService
     }
 
+    private val creditsApiService by lazy {
+        RetrofitClient.creditsApiService
+    }
+
     companion object {
         private const val TAG = "AuthRepository"
         private const val NETWORK_ERROR_MESSAGE = "네트워크 연결을 확인해주세요"
@@ -76,6 +80,32 @@ class AuthRepository {
         } catch (e: Exception) {
             Log.e(TAG, "❌ 내 정보 조회 중 오류: ${e.message}")
             ApiResult.Error("사용자 정보를 불러오지 못했어요")
+        }
+    }
+
+    /**
+     * 크레딧 잔액만 조회 (보상형 광고 시청 후 갱신용)
+     *
+     * 내 정보 전체(getMe)보다 가볍고, 지급이 늦어 잔액이 아직 안 올랐을 때
+     * 여러 번 재조회하기에 적합하다.
+     */
+    suspend fun getCreditBalance(): ApiResult<Int> = withContext(Dispatchers.IO) {
+        try {
+            val response = creditsApiService.getCredits()
+            val body = response.body()
+
+            if (response.isSuccessful && body != null) {
+                ApiResult.Success(body.balance)
+            } else {
+                Log.w(TAG, "❌ 크레딧 조회 실패 - HTTP ${response.code()}")
+                ApiResult.Error("크레딧을 불러오지 못했어요", response.code())
+            }
+        } catch (e: IOException) {
+            Log.e(TAG, "❌ 네트워크 오류: ${e.message}")
+            ApiResult.Error(NETWORK_ERROR_MESSAGE)
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ 크레딧 조회 중 오류: ${e.message}")
+            ApiResult.Error("크레딧을 불러오지 못했어요")
         }
     }
 

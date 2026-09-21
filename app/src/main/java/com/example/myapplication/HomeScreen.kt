@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.FaceRetouchingNatural
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -65,7 +66,9 @@ fun HomeScreen(
     authUiState: AuthUiState = AuthUiState.LoggedOut,
     onKakaoLoginClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
-    onMyResultsClick: () -> Unit = {}
+    onMyResultsClick: () -> Unit = {},
+    onWatchAdClick: () -> Unit = {},
+    isWaitingReward: Boolean = false
 ) {
     Column(
         modifier = modifier
@@ -106,7 +109,9 @@ fun HomeScreen(
                 authUiState = authUiState,
                 onKakaoLoginClick = onKakaoLoginClick,
                 onLogoutClick = onLogoutClick,
-                onMyResultsClick = onMyResultsClick
+                onMyResultsClick = onMyResultsClick,
+                onWatchAdClick = onWatchAdClick,
+                isWaitingReward = isWaitingReward
             )
 
             if (recentAnalyses.isNotEmpty()) {
@@ -254,13 +259,17 @@ private fun AccountSection(
     authUiState: AuthUiState,
     onKakaoLoginClick: () -> Unit,
     onLogoutClick: () -> Unit,
-    onMyResultsClick: () -> Unit
+    onMyResultsClick: () -> Unit,
+    onWatchAdClick: () -> Unit,
+    isWaitingReward: Boolean
 ) {
     when (authUiState) {
         is AuthUiState.LoggedIn -> LoggedInCard(
             user = authUiState.user,
             onLogoutClick = onLogoutClick,
-            onMyResultsClick = onMyResultsClick
+            onMyResultsClick = onMyResultsClick,
+            onWatchAdClick = onWatchAdClick,
+            isWaitingReward = isWaitingReward
         )
         AuthUiState.LoggedOut -> KakaoLoginButton(
             onClick = onKakaoLoginClick,
@@ -278,7 +287,9 @@ private fun AccountSection(
 private fun LoggedInCard(
     user: AuthUser,
     onLogoutClick: () -> Unit,
-    onMyResultsClick: () -> Unit
+    onMyResultsClick: () -> Unit,
+    onWatchAdClick: () -> Unit,
+    isWaitingReward: Boolean
 ) {
     AtelierCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -341,6 +352,46 @@ private fun LoggedInCard(
                     tint = Atelier.Chevron,
                     modifier = Modifier.size(18.dp)
                 )
+            }
+
+            AtelierDividerLine(modifier = Modifier.padding(horizontal = 18.dp))
+
+            // 보상형 광고로 크레딧 충전 (지급은 서버 SSV 콜백이 처리, 하루 5회 상한)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !isWaitingReward, onClick = onWatchAdClick)
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.PlayCircleOutline,
+                    contentDescription = null,
+                    tint = Atelier.BrandViolet,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = if (isWaitingReward) "크레딧 지급 확인 중..." else "광고 보고 크레딧 받기",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isWaitingReward) Atelier.TextTertiary else Atelier.Ink,
+                    modifier = Modifier.weight(1f)
+                )
+                if (isWaitingReward) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Atelier.BrandViolet
+                    )
+                } else {
+                    Text(
+                        text = "+1",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Atelier.BrandViolet
+                    )
+                }
             }
         }
     }
