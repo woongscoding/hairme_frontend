@@ -8,8 +8,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.AnalysisResult
+import com.example.myapplication.data.auth.TokenManager
 import com.example.myapplication.repository.ApiResult
 import com.example.myapplication.repository.HairstyleRepository
+import com.example.myapplication.util.AnalyticsHelper
 import com.example.myapplication.util.DeviceIdHelper
 // import dagger.hilt.android.lifecycle.HiltViewModel  // Hilt 임시 비활성화
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +46,12 @@ sealed class SynthesisUiState {
         // 대가성 문구 (서버 제공값 우선, null이면 UI에서 표준 문구 폴백)
         val disclosure: String? = null
     ) : SynthesisUiState()
-    data class Error(val message: String) : SynthesisUiState()
+    /**
+     * @param code 서버 HTTP 상태. 402(크레딧 소진)일 때 UI가 보상형 광고 CTA를 띄운다.
+     *             이 값이 없어서 지금까지 402 다이얼로그에 "광고를 보고 크레딧을
+     *             받아보세요"라는 문구만 있고 버튼이 없었다.
+     */
+    data class Error(val message: String, val code: Int? = null) : SynthesisUiState()
 }
 
 // ✅ v33: 염색색 추천 UI 상태
@@ -64,7 +71,8 @@ sealed class HairColorSynthesisUiState {
     object Idle : HairColorSynthesisUiState()
     data class Loading(val colorName: String) : HairColorSynthesisUiState()
     data class Success(val synthesizedImage: Bitmap, val colorName: String) : HairColorSynthesisUiState()
-    data class Error(val message: String) : HairColorSynthesisUiState()
+    /** @param code 서버 HTTP 상태 (402 = 크레딧 소진 → 광고 CTA) */
+    data class Error(val message: String, val code: Int? = null) : HairColorSynthesisUiState()
 }
 
 // 일일 무료 합성 횟수 상태
@@ -285,7 +293,35 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** 로그인 여부. 회원이면 과금 주체가 device 카운터가 아니라 크레딧이다. */
+    private fun isLoggedIn(): Boolean = TokenManager.getAccessToken() != null
+
+    /**
+     * 서버가 과금 한도로 거절한 경우에만 paywall_view를 남긴다.
+     *
+     * 광고를 보여줄 기회가 월 몇 번인지 세려면 이 이벤트가 필요하다. 지금까지는
+     * 402/429가 서버 CloudWatch에만 있어서 앱 지표로는 0건이었다.
+     */
+    private fun logPaywallIfQuotaDenied(code: Int?) {
+        when (code) {
+            402 -> AnalyticsHelper.logPaywallView("credits", isLoggedIn = true)
+            429 -> AnalyticsHelper.logPaywallView("device", isLoggedIn = isLoggedIn())
+        }
+    }
+
+    /**
+     * 클라이언트 측 사전 차단 여부.
+     *
+     * usageState는 /api/usage(device_id 기준)에서 온다. 이 엔드포인트는 로그인을 아예
+     * 모르기 때문에, 게스트로 무료 3회를 쓴 뒤 로그인한 사용자는 크레딧이 남아 있어도
+     * remaining=0이 되어 여기서 막혀버렸다. 서버 429 안내문("로그인하면 가입 보너스
+     * 5회를 받고 바로 이어서 합성할 수 있어요")과 정면으로 모순된다.
+     *
+     * 회원은 서버가 크레딧으로 판정하게 넘기고(402면 광고 CTA를 띄운다), device 한도는
+     * 비로그인에만 적용한다.
+     */
     private fun canSynthesize(): Boolean {
+        if (isLoggedIn()) return true
         val state = _usageState.value
         return state.remaining > 0 || state.isApiError
     }
@@ -302,6 +338,7 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
     fun synthesizeHairstyle(hairstyleName: String) {
         if (!canSynthesize()) {
             Log.e(TAG, "❌ 합성 불가: 일일 무료 횟수 소진")
+            AnalyticsHelper.logPaywallView("client_device", isLoggedIn = false)
             _synthesisState.value = SynthesisUiState.Error("오늘의 무료 합성 횟수(3회)를 모두 사용했습니다. 내일 다시 이용해주세요!")
             return
         }
@@ -320,6 +357,7 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
             when (val result = repository.synthesizeHairstyle(imageUri, hairstyleName, currentGender, deviceId)) {
                 is ApiResult.Success -> {
                     Log.d(TAG, "✅ 헤어스타일 합성 성공: $hairstyleName")
+                    AnalyticsHelper.logSynthesisResult("ai_hairstyle", hairstyleName, success = true)
                     consumeUsage()
                     _synthesisState.value = SynthesisUiState.Success(
                         synthesizedImage = result.data.image,
@@ -329,8 +367,12 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
                     )
                 }
                 is ApiResult.Error -> {
-                    Log.e(TAG, "❌ 헤어스타일 합성 실패: ${result.message}")
-                    _synthesisState.value = SynthesisUiState.Error(result.message)
+                    Log.e(TAG, "❌ 헤어스타일 합성 실패: ${result.message} (code=${result.code})")
+                    AnalyticsHelper.logSynthesisResult(
+                        "ai_hairstyle", hairstyleName, success = false, code = result.code
+                    )
+                    logPaywallIfQuotaDenied(result.code)
+                    _synthesisState.value = SynthesisUiState.Error(result.message, result.code)
                 }
             }
         }
@@ -448,6 +490,7 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
     fun synthesizeHairColor(colorName: String, colorHex: String) {
         if (!canSynthesize()) {
             Log.e(TAG, "❌ 합성 불가: 일일 무료 횟수 소진")
+            AnalyticsHelper.logPaywallView("client_device", isLoggedIn = false)
             _hairColorSynthesisState.value = HairColorSynthesisUiState.Error("오늘의 무료 합성 횟수(3회)를 모두 사용했습니다. 내일 다시 이용해주세요!")
             return
         }
@@ -466,6 +509,7 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
             when (val result = repository.synthesizeHairColor(imageUri, colorName, colorHex, deviceId)) {
                 is ApiResult.Success -> {
                     Log.d(TAG, "✅ 염색색 합성 성공: $colorName")
+                    AnalyticsHelper.logSynthesisResult("hair_color", colorName, success = true)
                     consumeUsage()
                     _hairColorSynthesisState.value = HairColorSynthesisUiState.Success(
                         synthesizedImage = result.data,
@@ -473,8 +517,12 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
                     )
                 }
                 is ApiResult.Error -> {
-                    Log.e(TAG, "❌ 염색색 합성 실패: ${result.message}")
-                    _hairColorSynthesisState.value = HairColorSynthesisUiState.Error(result.message)
+                    Log.e(TAG, "❌ 염색색 합성 실패: ${result.message} (code=${result.code})")
+                    AnalyticsHelper.logSynthesisResult(
+                        "hair_color", colorName, success = false, code = result.code
+                    )
+                    logPaywallIfQuotaDenied(result.code)
+                    _hairColorSynthesisState.value = HairColorSynthesisUiState.Error(result.message, result.code)
                 }
             }
         }

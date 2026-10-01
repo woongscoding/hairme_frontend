@@ -184,4 +184,83 @@ object AnalyticsHelper {
             putString("style_name", styleName)
         })
     }
+
+    // ================================
+    // 광고 계측 (AdMob)
+    //
+    // 배너/전면은 서버를 거치지 않아 CloudWatch(scripts/admob_watch.py)에 전혀 안 잡힌다.
+    // AdMob↔Firebase 링크가 자동으로 넣어주는 ad_impression에만 의존하지 않도록
+    // 요청/노출/실패를 placement 단위로 직접 찍는다.
+    //
+    // placement: "result_bottom"(결과 화면 앵커 배너), "paywall_402"(크레딧 소진 다이얼로그),
+    //            "home_account"(홈 계정 카드)
+    // format:    "banner" | "rewarded"
+    // ================================
+
+    /** 광고 요청 시작 */
+    fun logAdRequest(placement: String, format: String) {
+        firebaseAnalytics?.logEvent("ad_request", Bundle().apply {
+            putString("placement", placement)
+            putString("ad_format", format)
+        })
+    }
+
+    /** 광고가 실제로 화면에 떴다 (배너: onAdLoaded, 보상형: 시청 시작) */
+    fun logAdShown(placement: String, format: String) {
+        firebaseAnalytics?.logEvent("ad_shown", Bundle().apply {
+            putString("placement", placement)
+            putString("ad_format", format)
+        })
+    }
+
+    /** 광고 로드/표시 실패. reason은 AdMob 에러 코드 문자열 */
+    fun logAdFailed(placement: String, format: String, reason: String) {
+        firebaseAnalytics?.logEvent("ad_failed", Bundle().apply {
+            putString("placement", placement)
+            putString("ad_format", format)
+            putString("reason", reason.take(100))
+        })
+    }
+
+    /** 보상형 시청 완주 (크레딧 지급은 서버 SSV가 하므로 "지급됨"이 아니다) */
+    fun logAdRewarded(placement: String) {
+        firebaseAnalytics?.logEvent("ad_rewarded", Bundle().apply {
+            putString("placement", placement)
+        })
+    }
+
+    // ================================
+    // 퍼널 구멍 메우기
+    // ================================
+
+    /**
+     * 합성이 과금 한도에 막힌 순간 (광고가 떠야 할 지점).
+     *
+     * 서버 402/429가 Firebase에 전혀 안 남아 있어서 "광고를 보여줄 기회가 월 몇 번인지"를
+     * 앱 지표만으로는 셀 수 없었다.
+     *
+     * @param limitType "credits"(회원 402) | "device"(비로그인 429) | "client_device"(서버 호출 전 클라이언트 차단)
+     */
+    fun logPaywallView(limitType: String, isLoggedIn: Boolean) {
+        firebaseAnalytics?.logEvent("paywall_view", Bundle().apply {
+            putString("limit_type", limitType)
+            putString("logged_in", isLoggedIn.toString())
+        })
+    }
+
+    /**
+     * 합성 종료 (성공/실패 모두).
+     *
+     * 기존에는 synthesize_hairstyle(클릭)만 있어서 성공률을 서버 로그로만 볼 수 있었다.
+     *
+     * @param section "ai_hairstyle" | "hair_color"
+     */
+    fun logSynthesisResult(section: String, itemName: String, success: Boolean, code: Int? = null) {
+        firebaseAnalytics?.logEvent("synthesis_result", Bundle().apply {
+            putString("section", section)
+            putString("item_name", itemName)
+            putString("success", success.toString())
+            code?.let { putLong("status_code", it.toLong()) }
+        })
+    }
 }

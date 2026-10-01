@@ -85,6 +85,7 @@ object RewardedAdManager {
 
         isLoading = true
         val appContext = context.applicationContext
+        AnalyticsHelper.logAdRequest("preload", "rewarded")
 
         RewardedAd.load(
             appContext,
@@ -111,6 +112,8 @@ object RewardedAdManager {
      *
      * @param userId 서버가 크레딧을 지급할 대상. 이 값이 없으면 서버는 AdMob의 검증 핑과
      *               구분하지 못해 지급 없이 200을 돌려주므로, 비로그인 상태에서는 호출하지 않는다.
+     * @param placement 계측용 노출 지점 ("home_account" | "paywall_402"). 어느 진입점이
+     *               실제로 광고를 돌리는지 Firebase에서 구분하기 위한 값.
      * @param onRewarded 시청 완료. 지급은 서버가 비동기로 하므로 잔액은 따로 조회해야 한다.
      * @param onDismissed 광고 화면이 닫힘 (보상 여부와 무관하게 항상 호출)
      * @param onFailed 보여줄 광고가 없거나 표시에 실패
@@ -118,6 +121,7 @@ object RewardedAdManager {
     fun show(
         activity: Activity,
         userId: String,
+        placement: String,
         onRewarded: () -> Unit,
         onDismissed: () -> Unit = {},
         onFailed: (String) -> Unit = {}
@@ -125,6 +129,7 @@ object RewardedAdManager {
         val ad = rewardedAd
         if (ad == null) {
             load(activity)
+            AnalyticsHelper.logAdFailed(placement, "rewarded", "not_loaded")
             onFailed("광고를 불러오는 중이에요. 잠시 후 다시 시도해 주세요.")
             return
         }
@@ -150,14 +155,18 @@ object RewardedAdManager {
                 rewardedAd = null
                 load(activity)
                 Log.w(TAG, "보상형 광고 표시 실패: ${error.code} ${error.message}")
+                AnalyticsHelper.logAdFailed(placement, "rewarded", "${error.code}")
                 onFailed("광고를 재생하지 못했어요. 잠시 후 다시 시도해 주세요.")
             }
         }
+
+        AnalyticsHelper.logAdShown(placement, "rewarded")
 
         ad.show(activity) {
             // 보상 콜백은 광고가 닫히기 전에 온다. 실제 알림은 닫힌 뒤에 한 번만 하려고
             // 여기서는 플래그만 세운다.
             rewarded = true
+            AnalyticsHelper.logAdRewarded(placement)
             Log.d(TAG, "보상형 광고 시청 완료 - 서버 지급 대기")
         }
     }

@@ -54,6 +54,9 @@ import java.io.File
 // ✅ TAG를 최상단에 상수로 정의
 private const val TAG = "MainActivity"
 
+/** 서버가 크레딧 소진으로 합성을 거절한 상태 (core/quota.py) */
+private const val HTTP_INSUFFICIENT_CREDITS = 402
+
 /**
  * 제휴 링크를 외부 브라우저(ACTION_VIEW)로 연다.
  *
@@ -217,6 +220,7 @@ fun HairMeApp(
                         else -> RewardedAdManager.show(
                             activity = activity,
                             userId = userId,
+                            placement = "home_account",
                             onRewarded = { authViewModel.refreshCreditsAfterReward() },
                             onFailed = { message ->
                                 Toast.makeText(activityContext, message, Toast.LENGTH_SHORT).show()
@@ -253,6 +257,9 @@ fun HairMeApp(
                 onLoadMore = { myResultsViewModel.loadMore() },
                 onRequestLogin = { authViewModel.loginWithKakao(activityContext) },
                 onGoSynthesizeClick = {
+                    // 이 경로에 start_analysis가 없어서 photo_input(855) > start_analysis(748)
+                    // 역전이 생겼다. 홈의 "시작하기"와 같은 퍼널 이벤트를 찍는다.
+                    AnalyticsHelper.logStartAnalysis()
                     viewModel.resetState()
                     navController.navigate("photo_selection")
                 }
@@ -294,7 +301,29 @@ fun HairMeApp(
             val hairColorSynthesisState by viewModel.hairColorSynthesisState.collectAsStateWithLifecycle() // ✅ v34
             val usageState by viewModel.usageState.collectAsStateWithLifecycle()
             val authUiState by authViewModel.uiState.collectAsStateWithLifecycle() // 제휴 제품 클릭 로그인 분기용
+            val isWaitingReward by authViewModel.isWaitingReward.collectAsStateWithLifecycle()
             val success = uiState as? AnalysisUiState.Success
+
+            // 크레딧 소진(402) 다이얼로그의 "광고 보고 크레딧 받기" 핸들러.
+            // 홈의 진입점과 동일한 경로를 쓰지만 placement를 달리해 어느 쪽이 실제로
+            // 광고를 돌리는지 Firebase에서 구분한다.
+            val showPaywallRewardedAd: () -> Unit = {
+                val userId = (authUiState as? AuthUiState.LoggedIn)?.user?.userId
+                val activity = activityContext.findActivity()
+                when {
+                    userId.isNullOrBlank() || activity == null ->
+                        Toast.makeText(activityContext, "로그인 후 이용할 수 있어요", Toast.LENGTH_SHORT).show()
+                    else -> RewardedAdManager.show(
+                        activity = activity,
+                        userId = userId,
+                        placement = "paywall_402",
+                        onRewarded = { authViewModel.refreshCreditsAfterReward() },
+                        onFailed = { message ->
+                            Toast.makeText(activityContext, message, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
 
             // 포그라운드 복귀 시 Usage 재조회
             val lifecycleOwner = LocalLifecycleOwner.current
@@ -388,6 +417,11 @@ fun HairMeApp(
                         )
                     }
                     is SynthesisUiState.Success -> {
+                        // 합성 결과는 별도 화면이 아니라 다이얼로그라서 screen_view가 없었다.
+                        // 결과 화면 이후의 동선이 Firebase에서 끊기던 직접적 원인.
+                        LaunchedEffect(state.hairstyleName) {
+                            AnalyticsHelper.logScreenView("SynthesisResultDialog")
+                        }
                         SynthesisResultDialog(
                             synthesizedImage = state.synthesizedImage,
                             hairstyleName = state.hairstyleName,
@@ -425,7 +459,12 @@ fun HairMeApp(
                             onRetry = {
                                 // 마지막 요청한 스타일로 다시 시도 - 간단히 상태만 초기화
                                 viewModel.resetSynthesisState()
-                            }
+                            },
+                            isCreditPaywall = state.code == HTTP_INSUFFICIENT_CREDITS,
+                            isLoggedIn = authUiState is AuthUiState.LoggedIn,
+                            isWaitingReward = isWaitingReward,
+                            onWatchAdClick = showPaywallRewardedAd,
+                            onRequestLogin = { authViewModel.loginWithKakao(activityContext) }
                         )
                     }
                     SynthesisUiState.Idle -> {
@@ -442,6 +481,9 @@ fun HairMeApp(
                         )
                     }
                     is HairColorSynthesisUiState.Success -> {
+                        LaunchedEffect(state.colorName) {
+                            AnalyticsHelper.logScreenView("ColorSynthesisResultDialog")
+                        }
                         ColorSynthesisResultDialog(
                             synthesizedImage = state.synthesizedImage,
                             colorName = state.colorName,
@@ -457,7 +499,12 @@ fun HairMeApp(
                             onDismiss = { viewModel.resetHairColorSynthesisState() },
                             onRetry = {
                                 viewModel.resetHairColorSynthesisState()
-                            }
+                            },
+                            isCreditPaywall = state.code == HTTP_INSUFFICIENT_CREDITS,
+                            isLoggedIn = authUiState is AuthUiState.LoggedIn,
+                            isWaitingReward = isWaitingReward,
+                            onWatchAdClick = showPaywallRewardedAd,
+                            onRequestLogin = { authViewModel.loginWithKakao(activityContext) }
                         )
                     }
                     HairColorSynthesisUiState.Idle -> {

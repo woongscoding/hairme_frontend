@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +30,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -129,12 +131,24 @@ fun SynthesisResultDialog(
 
 /**
  * 합성 에러 다이얼로그
+ *
+ * 크레딧 소진(HTTP 402)일 때는 일반 에러와 다르게 보상형 광고 CTA를 띄운다.
+ * 이전에는 "광고를 보고 크레딧을 받아보세요"라는 문구만 보여주고 버튼이 없어서,
+ * 사용자가 홈으로 되돌아가 계정 카드를 찾아야 했다 (서버 로그 기준 월 ~88회).
+ *
+ * @param isCreditPaywall 서버가 402로 거절했는지 (크레딧 소진)
+ * @param isWaitingReward 광고 시청 후 서버 SSV 지급을 기다리는 중
  */
 @Composable
 fun SynthesisErrorDialog(
     errorMessage: String,
     onDismiss: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    isCreditPaywall: Boolean = false,
+    isLoggedIn: Boolean = false,
+    isWaitingReward: Boolean = false,
+    onWatchAdClick: () -> Unit = {},
+    onRequestLogin: () -> Unit = {}
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -146,16 +160,18 @@ fun SynthesisErrorDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = Icons.Outlined.ErrorOutline,
+                imageVector = if (isCreditPaywall) Icons.Outlined.PlayCircleOutline
+                              else Icons.Outlined.ErrorOutline,
                 contentDescription = null,
-                tint = Atelier.TrendAccent,
+                tint = if (isCreditPaywall) Atelier.BrandViolet else Atelier.TrendAccent,
                 modifier = Modifier.size(40.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = stringResource(R.string.synthesis_error),
+                text = if (isCreditPaywall) "크레딧을 모두 사용했어요"
+                       else stringResource(R.string.synthesis_error),
                 style = atelierSerif(size = 17),
                 textAlign = TextAlign.Center
             )
@@ -163,7 +179,10 @@ fun SynthesisErrorDialog(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = errorMessage,
+                text = if (isCreditPaywall) {
+                    if (isLoggedIn) "광고를 끝까지 보면 크레딧 1개를 받아 바로 이어서 합성할 수 있어요."
+                    else "로그인하면 가입 보너스 크레딧을 받고 바로 이어서 합성할 수 있어요."
+                } else errorMessage,
                 fontSize = 14.sp,
                 lineHeight = 21.sp,
                 color = Atelier.TextSecondary,
@@ -172,21 +191,64 @@ fun SynthesisErrorDialog(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            if (isCreditPaywall) {
+                // 보상형은 반드시 사용자가 스스로 선택해야 한다 (강제 노출은 AdMob 정책 위반).
+                // 그래서 자동 재생 없이 버튼만 두고, 받게 되는 보상을 문구에 명시한다.
+                if (isLoggedIn) {
+                    AtelierPrimaryButton(
+                        text = if (isWaitingReward) "크레딧 지급 확인 중..." else "광고 보고 크레딧 받기",
+                        onClick = onWatchAdClick,
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 52.dp,
+                        enabled = !isWaitingReward,
+                        trailingContent = if (isWaitingReward) {
+                            {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            }
+                        } else {
+                            { Text(text = "+1", fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+                        }
+                    )
+                } else {
+                    AtelierPrimaryButton(
+                        text = "로그인하고 이어서 합성하기",
+                        onClick = onRequestLogin,
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 52.dp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 여기서 "다시 시도"는 두지 않는다. onRetry는 상태만 초기화해서
+                // 사실상 닫기와 같고, 크레딧 없이 같은 요청을 다시 보내면 또 402다.
+                // 지급이 끝나면 토스트로 알리고, 사용자는 닫고 스타일을 다시 고른다.
                 AtelierSecondaryButton(
                     text = "닫기",
                     onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
-                AtelierPrimaryButton(
-                    text = "다시 시도",
-                    onClick = onRetry,
-                    modifier = Modifier.weight(1f),
-                    height = 48.dp
-                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AtelierSecondaryButton(
+                        text = "닫기",
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AtelierPrimaryButton(
+                        text = "다시 시도",
+                        onClick = onRetry,
+                        modifier = Modifier.weight(1f),
+                        height = 48.dp
+                    )
+                }
             }
         }
     }

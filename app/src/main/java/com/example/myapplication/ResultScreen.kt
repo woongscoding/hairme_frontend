@@ -65,6 +65,7 @@ import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.theme.atelierLabel
 import com.example.myapplication.ui.theme.atelierSerif
 import com.example.myapplication.util.AnalyticsHelper
+import com.example.myapplication.util.AnchoredBannerAd
 import com.example.myapplication.viewmodel.HairColorUiState
 import com.example.myapplication.viewmodel.SynthesisUsageState
 import kotlinx.coroutines.launch
@@ -116,7 +117,16 @@ fun ResultScreen(
                 )
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            // 앵커 배너: Scaffold의 bottomBar에 두면 스크롤 콘텐츠 **밖**에 고정된다.
+            // 분석 결과를 가리지도, 지연시키지도 않는다 (AdMob "콘텐츠를 가리는 배치" 회피).
+            // 광고 단위가 설정되지 않은 빌드에서는 아무것도 그리지 않고 높이 0을 차지한다.
+            AnchoredBannerAd(
+                placement = "result_bottom",
+                modifier = Modifier.navigationBarsPadding()
+            )
+        }
     ) { padding ->
         Column(
             modifier = Modifier
