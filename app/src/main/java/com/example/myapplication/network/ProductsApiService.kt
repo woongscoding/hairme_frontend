@@ -10,7 +10,8 @@ import retrofit2.http.Query
  * 제휴 제품(쿠팡파트너스) API 인터페이스
  *
  * Hairstyle Lambda에 호스팅되며 JWT 인증 클라이언트(hairstyleRetrofit)로 생성한다.
- * - click: Authorization: Bearer 필수 (AuthInterceptor가 자동 첨부)
+ * - click: 인증 불필요. 토큰이 있으면 AuthInterceptor가 자동 첨부하고 서버가 user_id로
+ *   클릭을 기록하며, 없으면 요청 본문의 device_id로 기록한다.
  * - recommendations: 인증 불필요 (토큰이 있어도 첨부되지만 무해)
  */
 interface ProductsApiService {

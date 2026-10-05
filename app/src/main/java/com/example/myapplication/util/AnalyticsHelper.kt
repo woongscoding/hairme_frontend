@@ -177,11 +177,17 @@ object AnalyticsHelper {
         })
     }
 
-    /** 제휴 제품 카드 클릭 (전환 분석). 실제 링크 발급/오픈 여부와 무관하게 탭 시점 기록 */
-    fun logProductClick(productId: String, styleName: String) {
+    /**
+     * 제휴 제품 카드 클릭 (전환 분석). 실제 링크 발급/오픈 여부와 무관하게 탭 시점 기록.
+     *
+     * logged_in: 클릭이 로그인 필수였던 동안 비로그인(합성 성공의 84%)은 카드를 눌러도
+     * 링크를 못 받았다. 개방 후 어느 세그먼트에서 클릭이 늘었는지 보려면 이 값이 필요하다.
+     */
+    fun logProductClick(productId: String, styleName: String, isLoggedIn: Boolean) {
         firebaseAnalytics?.logEvent("product_click", Bundle().apply {
             putString("product_id", productId)
             putString("style_name", styleName)
+            putString("logged_in", isLoggedIn.toString())
         })
     }
 

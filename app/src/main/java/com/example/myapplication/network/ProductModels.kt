@@ -66,7 +66,10 @@ data class ProductClickRequest(
     val style: String,
     val source: String,
     @SerializedName("hair_profile")
-    val hairProfile: HairProfile? = null
+    val hairProfile: HairProfile? = null,
+    // 비로그인 클릭의 로그 주체. 토큰이 있으면 서버가 user_id를 우선한다.
+    @SerializedName("device_id")
+    val deviceId: String? = null
 )
 
 /**

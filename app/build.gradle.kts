@@ -35,8 +35,8 @@ android {
         applicationId = "com.hairme.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 91
-        versionName = "5.14.0"
+        versionCode = 92
+        versionName = "5.15.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

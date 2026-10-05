@@ -92,9 +92,7 @@ fun SynthesisResultDialog(
     // 제휴 제품 추천 (빈 배열이면 섹션 미노출)
     recommendedProducts: List<RecommendedProduct> = emptyList(),
     disclosure: String? = null,
-    isLoggedIn: Boolean = false,
-    onProductClick: (RecommendedProduct) -> Unit = {},
-    onRequestLogin: () -> Unit = {}
+    onProductClick: (RecommendedProduct) -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -120,9 +118,7 @@ fun SynthesisResultDialog(
                 RecommendedProductsSection(
                     products = recommendedProducts,
                     disclosure = disclosure?.takeIf { it.isNotBlank() } ?: COUPANG_DEFAULT_DISCLOSURE,
-                    isLoggedIn = isLoggedIn,
-                    onProductClick = onProductClick,
-                    onRequestLogin = onRequestLogin
+                    onProductClick = onProductClick
                 )
             }
         } else null
@@ -573,12 +569,8 @@ private fun AtelierSynthesisDialog(
 private fun RecommendedProductsSection(
     products: List<RecommendedProduct>,
     disclosure: String,
-    isLoggedIn: Boolean,
-    onProductClick: (RecommendedProduct) -> Unit,
-    onRequestLogin: () -> Unit
+    onProductClick: (RecommendedProduct) -> Unit
 ) {
-    var showLoginPrompt by remember { mutableStateOf(false) }
-
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "STYLE KIT",
@@ -601,9 +593,7 @@ private fun RecommendedProductsSection(
             products.take(3).forEach { product ->
                 ProductCard(
                     product = product,
-                    onClick = {
-                        if (isLoggedIn) onProductClick(product) else showLoginPrompt = true
-                    }
+                    onClick = { onProductClick(product) }
                 )
             }
         }
@@ -616,16 +606,6 @@ private fun RecommendedProductsSection(
             fontSize = 11.sp,
             lineHeight = 16.sp,
             color = Atelier.TextTertiary
-        )
-    }
-
-    if (showLoginPrompt) {
-        ProductLoginPromptDialog(
-            onConfirm = {
-                showLoginPrompt = false
-                onRequestLogin()
-            },
-            onDismiss = { showLoginPrompt = false }
         )
     }
 }
@@ -698,57 +678,6 @@ private fun ProductCard(
                 fontWeight = FontWeight.SemiBold,
                 color = Atelier.Ink
             )
-        }
-    }
-}
-
-/**
- * 비로그인 상태에서 카드 탭 시 노출되는 로그인 유도 다이얼로그
- */
-@Composable
-private fun ProductLoginPromptDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Atelier.Background, Atelier.CardShape)
-                .border(1.dp, Atelier.Border, Atelier.CardShape)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "제품을 보려면 로그인이 필요해요",
-                style = atelierSerif(size = 17),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "로그인하면 스타일에 맞는 제품 정보를 확인할 수 있어요",
-                fontSize = 14.sp,
-                lineHeight = 21.sp,
-                color = Atelier.TextSecondary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                AtelierSecondaryButton(
-                    text = "닫기",
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f)
-                )
-                AtelierPrimaryButton(
-                    text = "로그인하고 제품 보기",
-                    onClick = onConfirm,
-                    modifier = Modifier.weight(1f),
-                    height = 48.dp
-                )
-            }
         }
     }
 }

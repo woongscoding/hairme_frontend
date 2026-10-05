@@ -432,9 +432,12 @@ fun HairMeApp(
                             // 제휴 제품 추천
                             recommendedProducts = state.recommendedProducts,
                             disclosure = state.disclosure,
-                            isLoggedIn = authUiState is AuthUiState.LoggedIn,
                             onProductClick = { product ->
-                                AnalyticsHelper.logProductClick(product.productId, state.hairstyleName)
+                                AnalyticsHelper.logProductClick(
+                                    productId = product.productId,
+                                    styleName = state.hairstyleName,
+                                    isLoggedIn = authUiState is AuthUiState.LoggedIn
+                                )
                                 viewModel.openProductLink(
                                     product = product,
                                     style = state.hairstyleName,
@@ -448,8 +451,7 @@ fun HairMeApp(
                                         ).show()
                                     }
                                 )
-                            },
-                            onRequestLogin = { authViewModel.loginWithKakao(activityContext) }
+                            }
                         )
                     }
                     is SynthesisUiState.Error -> {

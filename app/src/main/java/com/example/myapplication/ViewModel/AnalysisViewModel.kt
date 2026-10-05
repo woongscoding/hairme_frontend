@@ -419,7 +419,10 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
                 productId = product.productId,
                 style = style,
                 source = source,
-                hairProfile = currentHairProfile()
+                hairProfile = currentHairProfile(),
+                // 비로그인도 클릭 로그가 남아야 "헤어 프로필 x 제품 클릭" 데이터가
+                // 끊기지 않는다. 로그인 상태면 서버가 토큰의 user_id를 우선한다.
+                deviceId = deviceId
             )
             when (val result = repository.clickProduct(request)) {
                 is ApiResult.Success -> {
