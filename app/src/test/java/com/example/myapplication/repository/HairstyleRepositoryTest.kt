@@ -175,7 +175,8 @@ class HairstyleRepositoryTest {
         // Then: Error 결과 확인
         assertTrue(result is ApiResult.Error)
         assertEquals(500, (result as ApiResult.Error).code)
-        assertTrue(result.message.contains("서버 오류"))
+        // 본문 원문("Internal Server Error")이 아니라 상태 코드별 한국어 안내가 보여야 한다
+        assertEquals("서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요", result.message)
     }
 
     @Test

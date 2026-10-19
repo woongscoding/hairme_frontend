@@ -26,6 +26,8 @@ import java.io.InputStream
 import com.example.myapplication.util.NetworkUtils
 import com.example.myapplication.util.toNetworkError
 import com.example.myapplication.util.toUserFriendlyMessage
+import com.example.myapplication.util.displayableOrFallback
+import com.example.myapplication.util.serverErrorMessage
 import com.example.myapplication.data.local.AnalysisHistoryDao
 import com.example.myapplication.data.local.AnalysisHistoryEntity
 import kotlinx.coroutines.flow.Flow
@@ -153,7 +155,7 @@ class HairstyleRepository(
                     val errorMsg = apiResponse.error ?: "알 수 없는 오류가 발생했습니다"
                     Log.e(TAG, "❌ 서버 분석 실패")
                     Log.e(TAG, "   - 에러 메시지: $errorMsg")
-                    return@withContext ApiResult.Error("서버 오류: $errorMsg")
+                    return@withContext ApiResult.Error(displayableOrFallback(errorMsg, response.code()))
                 }
 
                 Log.d(TAG, "✅ API 성공 - analysisId: ${apiResponse.analysis_id}")
@@ -205,7 +207,7 @@ class HairstyleRepository(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "알 수 없는 오류"
                 Log.e(TAG, "❌ API 실패 (${response.code()}): $errorMsg")
-                ApiResult.Error("서버 오류: $errorMsg", response.code())
+                ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ 예외 발생: ${e.message}", e)
@@ -451,7 +453,7 @@ class HairstyleRepository(
                 if (response.code() == HTTP_INSUFFICIENT_CREDITS) {
                     ApiResult.Error(INSUFFICIENT_CREDITS_MESSAGE, HTTP_INSUFFICIENT_CREDITS)
                 } else {
-                    ApiResult.Error("서버 오류: $errorMsg", response.code())
+                    ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
                 }
             }
         } catch (e: Exception) {
@@ -524,7 +526,7 @@ class HairstyleRepository(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "서버 오류"
                 Log.e(TAG, "❌ API 실패 (${response.code()}): $errorMsg")
-                ApiResult.Error("서버 오류: $errorMsg", response.code())
+                ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ 예외 발생: ${e.message}", e)
@@ -617,7 +619,7 @@ class HairstyleRepository(
                 if (response.code() == HTTP_INSUFFICIENT_CREDITS) {
                     ApiResult.Error(INSUFFICIENT_CREDITS_MESSAGE, HTTP_INSUFFICIENT_CREDITS)
                 } else {
-                    ApiResult.Error("서버 오류: $errorMsg", response.code())
+                    ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
                 }
             }
         } catch (e: Exception) {
@@ -642,7 +644,7 @@ class HairstyleRepository(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "서버 오류"
                 Log.e(TAG, "❌ Usage 조회 실패 (${response.code()}): $errorMsg")
-                ApiResult.Error("Usage 조회 실패: $errorMsg", response.code())
+                ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Usage 조회 예외: ${e.message}", e)
@@ -662,7 +664,7 @@ class HairstyleRepository(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "서버 오류"
                 Log.e(TAG, "❌ Usage 소비 실패 (${response.code()}): $errorMsg")
-                ApiResult.Error("Usage 소비 실패: $errorMsg", response.code())
+                ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Usage 소비 예외: ${e.message}", e)

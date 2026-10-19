@@ -3,6 +3,9 @@ package com.example.myapplication.util
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import com.google.gson.JsonObject
+import com.google.gson.JsonParseException
+import com.google.gson.JsonParser
 // import dagger.hilt.android.qualifiers.ApplicationContext  // Hilt 임시 비활성화
 import kotlinx.coroutines.delay
 // import javax.inject.Inject  // Hilt 임시 비활성화
@@ -128,9 +131,58 @@ fun NetworkError.toUserFriendlyMessage(): String {
             400 -> "잘못된 요청입니다"
             401, 403 -> "권한이 없습니다"
             404 -> "서버를 찾을 수 없습니다"
+            409 -> "이미 처리 중인 요청이 있습니다. 잠시 후 다시 시도해주세요"
+            422 -> "요청을 처리하지 못했습니다. 다시 시도해주세요"
+            429 -> "요청이 너무 많습니다. 잠시 후 다시 시도해주세요"
             500, 502, 503 -> "서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요"
             else -> "서버 오류가 발생했습니다 (코드: $code)"
         }
         is NetworkError.Unknown -> "오류가 발생했습니다: $message"
     }
 }
+
+/**
+ * 서버 에러 응답 본문에서 사용자에게 보여줄 문장만 꺼낸다.
+ *
+ * 서버 본문 형태:
+ * - {"error": "코드", "message": "한국어 문장"}  (분석 400, 한도 429, 분당 429)
+ * - {"detail": "문장"} / {"detail": {"message": "문장"}}  (HTTPException)
+ * - {"detail": [...]}  (FastAPI 입력 검증 422)
+ * - {"error": "Rate limit exceeded: ..."}  (slowapi 기본 핸들러)
+ *
+ * 한글이 들어 있는 문장만 쓴다 - 영어 원문, 에러 코드, JSON 이 화면에 나오지 않게 한다.
+ * 쓸 문장이 없으면 상태 코드별 기본 안내를 돌려준다.
+ */
+fun serverErrorMessage(errorBody: String?, code: Int): String {
+    val candidates = try {
+        val root = errorBody?.let { JsonParser.parseString(it) }
+        if (root != null && root.isJsonObject) messageCandidates(root.asJsonObject) else emptyList()
+    } catch (e: JsonParseException) {
+        emptyList()
+    }
+    return candidates.firstOrNull { it.containsHangul() } ?: fallbackErrorMessage(code)
+}
+
+/** 본문이 없거나 쓸 문장이 없을 때의 상태 코드별 안내 */
+fun fallbackErrorMessage(code: Int): String =
+    if (code in 400..599) NetworkError.HttpError(code, "").toUserFriendlyMessage()
+    else "요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요"
+
+/** 한글 문장이면 그대로, 아니면(에러 코드·영어 원문) 상태 코드별 안내 */
+fun displayableOrFallback(message: String?, code: Int): String =
+    message?.takeIf { it.containsHangul() } ?: fallbackErrorMessage(code)
+
+private fun messageCandidates(obj: JsonObject): List<String> {
+    val detail = obj.get("detail")
+    return listOfNotNull(
+        obj.stringOrNull("message"),
+        detail?.takeIf { it.isJsonPrimitive }?.asString,
+        detail?.takeIf { it.isJsonObject }?.asJsonObject?.stringOrNull("message"),
+        obj.stringOrNull("error")
+    )
+}
+
+private fun JsonObject.stringOrNull(key: String): String? =
+    get(key)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+
+private fun String.containsHangul(): Boolean = any { it in '가'..'힣' }
