@@ -1,6 +1,7 @@
 package com.example.myapplication.network
 
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -40,6 +41,9 @@ interface HairstyleApiService {
 
     /**
      * 헤어스타일 합성 API 호출
+     *
+     * analysisId/recRank/hairstyleId는 추천 카드에서 들어온 합성에만 채운다.
+     * null 파트는 Retrofit이 multipart에서 생략한다 (추천 밖 진입·구버전 서버 호환).
      */
     @Multipart
     @POST("/api/v2/synthesize")
@@ -47,8 +51,19 @@ interface HairstyleApiService {
         @Part file: MultipartBody.Part,
         @Part hairstyleName: MultipartBody.Part,
         @Part gender: MultipartBody.Part,
-        @Part deviceId: MultipartBody.Part
+        @Part deviceId: MultipartBody.Part,
+        @Part analysisId: MultipartBody.Part?,
+        @Part recRank: MultipartBody.Part?,
+        @Part hairstyleId: MultipartBody.Part?
     ): Response<SynthesisResponse>
+
+    /**
+     * 추천 스타일 합성 결과의 저장/공유 신호 (fire-and-forget, 서버는 항상 200)
+     */
+    @POST("/api/events/style-action")
+    suspend fun sendStyleAction(
+        @Body request: StyleActionRequest
+    ): Response<ResponseBody>
 
     /**
      * v33: 퍼스널컬러 기반 염색색 추천 API

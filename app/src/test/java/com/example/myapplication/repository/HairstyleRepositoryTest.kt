@@ -7,6 +7,10 @@ import com.example.myapplication.network.AnalysisData
 import com.example.myapplication.network.ApiResponse
 import com.example.myapplication.network.HairstyleApiService
 import com.example.myapplication.network.Recommendation
+import com.example.myapplication.network.StyleActionRequest
+import com.example.myapplication.network.SynthesisResponse
+import com.example.myapplication.StyleRecContext
+import io.mockk.coVerify
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -14,6 +18,8 @@ import io.mockk.spyk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okio.Buffer
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Before
@@ -140,5 +146,81 @@ class HairstyleRepositoryTest {
 
         assertIs<ApiResult.Error>(result)
         assertEquals("이미지를 처리할 수 없습니다", result.message)
+    }
+
+    // ===== 추천 스타일 행동 신호 =====
+
+    private fun MultipartBody.Part?.value(): String? =
+        this?.let { Buffer().also { buf -> it.body.writeTo(buf) }.readUtf8() }
+
+    private fun MultipartBody.Part?.fieldName(): String? =
+        this?.headers?.get("Content-Disposition")?.substringAfter("name=\"")?.substringBefore("\"")
+
+    private fun stubSynthesize(captured: MutableList<MultipartBody.Part?>) {
+        coEvery {
+            mockApiService.synthesizeHairstyle(
+                any(), any(), any(), any(),
+                captureNullable(captured), captureNullable(captured), captureNullable(captured)
+            )
+        } returns Response.error<SynthesisResponse>(500, "err".toResponseBody("text/plain".toMediaTypeOrNull()))
+    }
+
+    @Test
+    fun `추천 카드에서 들어온 합성은 analysis_id·rec_rank·hairstyle_id를 함께 보낸다`() = runTest {
+        val captured = mutableListOf<MultipartBody.Part?>()
+        stubSynthesize(captured)
+
+        repository.synthesizeHairstyle(
+            mockUri, "레이어드컷", "female", "dev-1",
+            StyleRecContext(analysisId = "a1b2", recRank = 2, hairstyleId = 57)
+        )
+
+        assertEquals(listOf("analysis_id", "rec_rank", "hairstyle_id"), captured.map { it.fieldName() })
+        assertEquals(listOf("a1b2", "2", "57"), captured.map { it.value() })
+    }
+
+    @Test
+    fun `추천 밖 진입 합성은 추천 맥락 파트를 생략한다`() = runTest {
+        val captured = mutableListOf<MultipartBody.Part?>()
+        stubSynthesize(captured)
+
+        repository.synthesizeHairstyle(mockUri, "레이어드컷", "female", "dev-1")
+
+        assertEquals(listOf<MultipartBody.Part?>(null, null, null), captured)
+    }
+
+    @Test
+    fun `hairstyle_id가 없으면 그 파트만 생략한다`() = runTest {
+        val captured = mutableListOf<MultipartBody.Part?>()
+        stubSynthesize(captured)
+
+        repository.synthesizeHairstyle(
+            mockUri, "레이어드컷", "female", "dev-1",
+            StyleRecContext(analysisId = "a1b2", recRank = 4, hairstyleId = null)
+        )
+
+        assertEquals(listOf("a1b2", "4", null), captured.map { it.value() })
+    }
+
+    private val styleAction = StyleActionRequest(
+        analysisId = "a1b2", styleName = "레이어드컷", hairstyleId = 57,
+        action = "save", resultId = "abcd1234abcd1234", deviceId = "dev-1"
+    )
+
+    @Test
+    fun `구버전 서버 404여도 스타일 행동 신호는 조용히 끝난다`() = runTest {
+        coEvery { mockApiService.sendStyleAction(any()) } returns
+            Response.error(404, "Not Found".toResponseBody("text/plain".toMediaTypeOrNull()))
+
+        repository.sendStyleAction(styleAction)
+
+        coVerify(exactly = 1) { mockApiService.sendStyleAction(styleAction) }
+    }
+
+    @Test
+    fun `네트워크 예외도 스타일 행동 신호에서 삼킨다`() = runTest {
+        coEvery { mockApiService.sendStyleAction(any()) } throws UnknownHostException("no host")
+
+        repository.sendStyleAction(styleAction)
     }
 }

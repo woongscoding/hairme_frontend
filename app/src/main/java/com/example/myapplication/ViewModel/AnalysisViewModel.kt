@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplication.AnalysisResult
+import com.example.myapplication.StyleRecContext
 import com.example.myapplication.data.auth.TokenManager
 import com.example.myapplication.repository.ApiResult
 import com.example.myapplication.repository.HairstyleRepository
@@ -50,7 +51,11 @@ sealed class SynthesisUiState {
         // 대가성 문구 (서버 제공값 우선, null이면 UI에서 표준 문구 폴백)
         val disclosure: String? = null,
         // 무료 미리보기(512px + 워터마크) → "이 스타일 고화질로 보기" CTA
-        val isPreview: Boolean = false
+        val isPreview: Boolean = false,
+        // 추천 카드에서 들어온 합성이면 추천 맥락 (저장/공유 신호용). 추천 밖 진입이면 null
+        val rec: StyleRecContext? = null,
+        // 서버 결과 식별자 (구버전 서버면 null)
+        val resultId: String? = null
     ) : SynthesisUiState()
     /** 과금 한도(402/429)는 여기로 오지 않고 결제 화면([PaywallRequest])으로 간다 */
     data class Error(val message: String) : SynthesisUiState()
@@ -109,7 +114,7 @@ data class SynthesisUsageState(
 
 /** 결제 화면 때문에 멈춘 합성. 결제·로그인 후 이어서 실행한다. */
 sealed class PendingSynthesis {
-    data class Style(val name: String) : PendingSynthesis()
+    data class Style(val name: String, val rec: StyleRecContext? = null) : PendingSynthesis()
     data class Color(val name: String, val hex: String) : PendingSynthesis()
 }
 
@@ -405,7 +410,7 @@ class AnalysisViewModel @JvmOverloads constructor(
         val pending = _paywall.value?.pending
         _paywall.value = null
         when (pending) {
-            is PendingSynthesis.Style -> synthesizeHairstyle(pending.name)
+            is PendingSynthesis.Style -> synthesizeHairstyle(pending.name, pending.rec)
             is PendingSynthesis.Color -> synthesizeHairColor(pending.name, pending.hex)
             null -> Unit
         }
@@ -424,7 +429,7 @@ class AnalysisViewModel @JvmOverloads constructor(
         resetHairColorSynthesisState()
         if (memberCredits != null && memberCredits > 0) {
             when (pending) {
-                is PendingSynthesis.Style -> synthesizeHairstyle(pending.name)
+                is PendingSynthesis.Style -> synthesizeHairstyle(pending.name, pending.rec)
                 is PendingSynthesis.Color -> synthesizeHairColor(pending.name, pending.hex)
             }
         } else {
@@ -462,11 +467,12 @@ class AnalysisViewModel @JvmOverloads constructor(
      * 선택한 헤어스타일을 현재 사진에 합성
      *
      * @param hairstyleName 적용할 헤어스타일 이름 (예: 투블럭컷)
+     * @param rec 추천 카드에서 들어온 합성이면 추천 맥락, 추천 밖 진입이면 null
      */
-    fun synthesizeHairstyle(hairstyleName: String) {
+    fun synthesizeHairstyle(hairstyleName: String, rec: StyleRecContext? = null) {
         if (!canSynthesize()) {
             Log.d(TAG, "합성 불가: 무료 횟수 소진 → 결제 화면")
-            _paywall.value = PaywallRequest("exhausted", "client_device", PendingSynthesis.Style(hairstyleName))
+            _paywall.value = PaywallRequest("exhausted", "client_device", PendingSynthesis.Style(hairstyleName, rec))
             return
         }
 
@@ -481,7 +487,7 @@ class AnalysisViewModel @JvmOverloads constructor(
             Log.d(TAG, "🎨 헤어스타일 합성 시작: $hairstyleName")
             _synthesisState.value = SynthesisUiState.Loading(hairstyleName)
 
-            when (val result = repository.synthesizeHairstyle(imageUri, hairstyleName, currentGender, deviceId)) {
+            when (val result = repository.synthesizeHairstyle(imageUri, hairstyleName, currentGender, deviceId, rec)) {
                 is ApiResult.Success -> {
                     Log.d(TAG, "✅ 헤어스타일 합성 성공: $hairstyleName")
                     AnalyticsHelper.logSynthesisResult("ai_hairstyle", hairstyleName, success = true)
@@ -491,7 +497,9 @@ class AnalysisViewModel @JvmOverloads constructor(
                         hairstyleName = hairstyleName,
                         recommendedProducts = result.data.recommendedProducts,
                         disclosure = result.data.disclosure,
-                        isPreview = result.data.isPreview
+                        isPreview = result.data.isPreview,
+                        rec = rec,
+                        resultId = result.data.resultId
                     )
                     _synthesisSucceeded.tryEmit(Unit)
                 }
@@ -501,10 +509,34 @@ class AnalysisViewModel @JvmOverloads constructor(
                         "ai_hairstyle", hairstyleName, success = false, code = result.code
                     )
                     _synthesisState.value =
-                        if (openPaywallIfQuotaDenied(result, PendingSynthesis.Style(hairstyleName))) SynthesisUiState.Idle
+                        if (openPaywallIfQuotaDenied(result, PendingSynthesis.Style(hairstyleName, rec))) SynthesisUiState.Idle
                         else SynthesisUiState.Error(result.message)
                 }
             }
+        }
+    }
+
+    /**
+     * 헤어스타일 합성 결과의 저장/공유 신호를 서버로 보낸다 (fire-and-forget).
+     *
+     * 추천 카드에서 들어온 합성(analysis_id 있음)만 보낸다. 염색 합성은 호출하지 않는다.
+     * 실패는 repository에서 삼키고 로그만 남긴다 (토스트·UI 블로킹 없음).
+     *
+     * @param action "save" | "share"
+     */
+    fun reportStyleAction(state: SynthesisUiState.Success, action: String) {
+        val rec = state.rec ?: return
+        viewModelScope.launch {
+            repository.sendStyleAction(
+                com.example.myapplication.network.StyleActionRequest(
+                    analysisId = rec.analysisId,
+                    styleName = state.hairstyleName,
+                    hairstyleId = rec.hairstyleId,
+                    action = action,
+                    resultId = state.resultId,
+                    deviceId = deviceId
+                )
+            )
         }
     }
 

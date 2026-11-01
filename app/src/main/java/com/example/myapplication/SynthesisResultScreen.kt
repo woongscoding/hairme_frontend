@@ -82,6 +82,8 @@ fun SynthesisLoadingDialog(
  * @param beforeImageUri 원본 사진 (전달 시 Before/After 2열 그리드로 표시)
  * @param quotaLabel 헤더 우측 남은 횟수 ("무료 2회 남음" / "크레딧 8개")
  * @param isPreview 무료 미리보기(512px·워터마크) 결과면 "이 스타일 고화질로 보기" CTA를 띄운다
+ * @param onSaved 갤러리 저장 성공 직후 (서버 저장 신호용)
+ * @param onShared 공유 버튼 클릭 시 (서버 공유 신호용)
  */
 @Composable
 fun SynthesisResultDialog(
@@ -96,7 +98,9 @@ fun SynthesisResultDialog(
     // 제휴 제품 추천 (빈 배열이면 섹션 미노출)
     recommendedProducts: List<RecommendedProduct> = emptyList(),
     disclosure: String? = null,
-    onProductClick: (RecommendedProduct) -> Unit = {}
+    onProductClick: (RecommendedProduct) -> Unit = {},
+    onSaved: () -> Unit = {},
+    onShared: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -113,10 +117,11 @@ fun SynthesisResultDialog(
         onTryAnother = onTryAnother,
         onSave = {
             AnalyticsHelper.logResultSave("ai_hairstyle", hairstyleName)
-            saveImageToGallery(context, synthesizedImage, hairstyleName)
+            if (saveImageToGallery(context, synthesizedImage, hairstyleName)) onSaved()
         },
         onShare = {
             AnalyticsHelper.logResultShare("ai_hairstyle", "system_share")
+            onShared()
             ShareHelper.shareResult(context, synthesizedImage, "ai_hairstyle", hairstyleName)
         },
         extraContent = if (recommendedProducts.isNotEmpty()) {
@@ -713,9 +718,11 @@ private fun categoryPlaceholderEmoji(category: String): String {
 
 /**
  * 이미지를 갤러리에 저장
+ *
+ * @return 실제로 파일을 썼으면 true (저장 신호는 성공했을 때만 보낸다)
  */
-private fun saveImageToGallery(context: Context, bitmap: Bitmap, styleName: String) {
-    try {
+private fun saveImageToGallery(context: Context, bitmap: Bitmap, styleName: String): Boolean {
+    return try {
         val filename = "HairMe_${styleName}_${System.currentTimeMillis()}.png"
 
         val outputStream: OutputStream?
@@ -745,14 +752,16 @@ private fun saveImageToGallery(context: Context, bitmap: Bitmap, styleName: Stri
             outputStream = java.io.FileOutputStream(imageFile)
         }
 
-        outputStream?.use {
+        val written = outputStream?.use {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
-        }
+        } ?: false
 
         Toast.makeText(context, context.getString(R.string.synthesis_saved), Toast.LENGTH_SHORT).show()
+        written
 
     } catch (e: Exception) {
         e.printStackTrace()
         Toast.makeText(context, "저장 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+        false
     }
 }
