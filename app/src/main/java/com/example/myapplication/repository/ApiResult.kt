@@ -23,10 +23,15 @@ sealed class ApiResult<out T> {
      * API 호출 실패
      * @param message 에러 메시지
      * @param code 에러 코드 (선택사항)
+     * @param reason 서버 본문의 세부 사유. 429는 limit_type("device"|"ip"),
+     *               그 밖에는 error 코드("insufficient_credits" 등). 없으면 null
+     * @param limitDetail 기기 한도 429의 limit_detail ("daily"|"lifetime"). 없으면 null
      */
     data class Error(
         val message: String,
-        val code: Int? = null
+        val code: Int? = null,
+        val reason: String? = null,
+        val limitDetail: String? = null
     ) : ApiResult<Nothing>()
 }
 

@@ -110,5 +110,8 @@ data class HairColorSynthesisResponse(
     val message: String? = null,
     val color_name: String? = null,
     val color_hex: String? = null,
-    val processing_time: Double? = null
+    val processing_time: Double? = null,
+    // 헤어스타일 합성과 같은 과금 블록 / 무료 미리보기 여부 (없으면 null)
+    val quota: SynthesisQuota? = null,
+    val is_preview: Boolean? = null
 )

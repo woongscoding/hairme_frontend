@@ -43,8 +43,16 @@ import com.example.myapplication.viewmodel.MyResultsViewModel
 import com.example.myapplication.viewmodel.HairColorSynthesisUiState
 import com.example.myapplication.viewmodel.SynthesisUiState
 import com.example.myapplication.viewmodel.SynthesisUsageState
+import com.example.myapplication.viewmodel.PendingSynthesis
 import com.example.myapplication.util.AnalyticsHelper
+import com.example.myapplication.util.BillingManager
+import com.example.myapplication.util.DeviceIdHelper
+import com.example.myapplication.util.Experiments
 import com.example.myapplication.util.KeyHashUtil
+import com.example.myapplication.util.NextCutReminder
+import com.example.myapplication.util.SalonIntentStore
+import android.content.Intent
+import android.os.Build
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -53,9 +61,6 @@ import java.io.File
 
 // ✅ TAG를 최상단에 상수로 정의
 private const val TAG = "MainActivity"
-
-/** 서버가 크레딧 소진으로 합성을 거절한 상태 (core/quota.py) */
-private const val HTTP_INSUFFICIENT_CREDITS = 402
 
 /**
  * 제휴 링크를 외부 브라우저(ACTION_VIEW)로 연다.
@@ -89,12 +94,43 @@ class MainActivity : ComponentActivity() {
         // ✅ 카카오 API 키 해시 출력 (Logcat에서 확인)
         KeyHashUtil.getKeyHash(this)
 
+        // 회전 등으로 재생성될 때 같은 진입을 두 번 세지 않는다
+        if (savedInstanceState == null) trackLaunchSource(intent)
+
         setContent {
             MyApplicationTheme {
                 HairMeApp()
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        trackLaunchSource(intent)
+    }
+}
+
+/**
+ * 공유 링크(App Links)나 리마인드 알림으로 들어온 진입을 기록한다.
+ * 화면 이동은 하지 않는다 - 두 경우 모두 홈에서 새 분석을 시작하는 게 다음 행동이다.
+ */
+private fun trackLaunchSource(intent: Intent?) {
+    intent ?: return
+    intent.data?.takeIf { it.host == "hairme.app" }?.let { uri ->
+        AnalyticsHelper.logAppLinkOpen(uri.path ?: "/")
+    }
+    intent.getStringExtra(NextCutReminder.EXTRA_PUSH_TYPE)?.let { type ->
+        AnalyticsHelper.logPushOpen(type)
+    }
+}
+
+/**
+ * 남은 횟수 표시: 회원은 크레딧, 비회원은 무료 정책(매일/평생)에 맞춘 문구.
+ */
+private fun quotaLabel(authUiState: AuthUiState, usage: SynthesisUsageState): String = when {
+    authUiState is AuthUiState.LoggedIn -> "크레딧 ${authUiState.user.credits}개"
+    usage.freePolicy == SynthesisUsageState.FREE_POLICY_LIFETIME -> "무료 체험 ${usage.remaining}회 남음"
+    else -> "오늘 무료 ${usage.remaining}회 남음"
 }
 
 @Composable
@@ -151,6 +187,127 @@ fun HairMeApp(
         }
     }
 
+    // ✅ 결제 결과 안내 (일회성)
+    val purchaseMessage by authViewModel.purchaseMessage.collectAsStateWithLifecycle()
+    LaunchedEffect(purchaseMessage) {
+        purchaseMessage?.let {
+            Toast.makeText(activityContext, it, Toast.LENGTH_LONG).show()
+            authViewModel.consumePurchaseMessage()
+        }
+    }
+
+    val authState by authViewModel.uiState.collectAsStateWithLifecycle()
+    val hasPurchased by authViewModel.hasPurchased.collectAsStateWithLifecycle()
+    val starterAvailable by authViewModel.starterAvailable.collectAsStateWithLifecycle()
+    val paywallRequest by viewModel.paywall.collectAsStateWithLifecycle()
+
+    // 30회 상품 노출 A/B는 기기 해시로 고정 배정
+    val credits30Variant = remember {
+        Experiments.credits30Variant(DeviceIdHelper.getDeviceId(activityContext))
+    }
+
+    // 비회원이 결제 화면에서 고른 상품: 로그인이 끝나면 이 상품 결제를 이어서 연다
+    var pendingPurchaseProductId by remember { mutableStateOf<String?>(null) }
+
+    // 합성 응답의 회원 잔액 → 화면의 "크레딧 N개" 즉시 갱신
+    LaunchedEffect(Unit) {
+        viewModel.memberBalance.collect { authViewModel.updateCredits(it) }
+    }
+    // 합성 성공 → "다음 커트" 알림 시점 재계산
+    LaunchedEffect(Unit) {
+        viewModel.synthesisSucceeded.collect {
+            SalonIntentStore.markSynthesis(activityContext)
+            NextCutReminder.reschedule(activityContext)
+        }
+    }
+    // 결제 지급 완료 → 결제 화면을 닫고 막혔던 합성을 이어서 실행
+    LaunchedEffect(Unit) {
+        authViewModel.purchaseGranted.collect {
+            if (viewModel.paywall.value != null) viewModel.resumePendingSynthesis()
+        }
+    }
+    // 결제 화면에서 로그인한 경우:
+    // - 상품을 골랐던 비회원 → 그 상품 결제를 이어서 연다
+    // - 로그인 보너스(또는 광고 보상)로 크레딧이 생겼다 → 막혔던 합성을 이어서 실행
+    LaunchedEffect(authState) {
+        val user = (authState as? AuthUiState.LoggedIn)?.user ?: return@LaunchedEffect
+        val productId = pendingPurchaseProductId
+        if (productId != null) {
+            pendingPurchaseProductId = null
+            activityContext.findActivity()?.let { authViewModel.purchase(it, productId, "paywall_after_login") }
+        } else if (viewModel.paywall.value != null && user.credits > 0) {
+            viewModel.resumePendingSynthesis()
+        }
+    }
+
+    // 결제 화면 (뜨는 때: 무료/크레딧 소진 후 합성 탭, 무료 결과의 "고화질로 보기")
+    paywallRequest?.let { request ->
+        val usage by viewModel.usageState.collectAsStateWithLifecycle()
+        val products by BillingManager.products.collectAsStateWithLifecycle()
+        val isPurchasing by BillingManager.isPurchasing.collectAsStateWithLifecycle()
+        val isWaitingReward by authViewModel.isWaitingReward.collectAsStateWithLifecycle()
+        val isLoggedIn = authState is AuthUiState.LoggedIn
+
+        LaunchedEffect(request) {
+            AnalyticsHelper.logPaywallView(
+                trigger = request.trigger,
+                limitType = request.limitType,
+                isLoggedIn = isLoggedIn,
+                credits30Variant = credits30Variant,
+                experimentArm = usage.experimentArm
+            )
+            if (BillingManager.products.value.isEmpty()) BillingManager.queryProducts()
+            authViewModel.refreshStarterAvailability()
+        }
+
+        PaywallDialog(
+            trigger = request.trigger,
+            isLoggedIn = isLoggedIn,
+            isLifetimeFreePolicy = request.isLifetimeLimit ||
+                usage.freePolicy == SynthesisUsageState.FREE_POLICY_LIFETIME,
+            signupBonus = usage.signupBonus,
+            products = products,
+            // 서버 판정(products의 available)이 있으면 그것을, 없으면(비회원·조회 실패) 결제 이력으로
+            showStarter = starterAvailable ?: !hasPurchased,
+            credits30Variant = credits30Variant,
+            isPurchasing = isPurchasing,
+            // 대조군 회원만 광고로 크레딧 (실험군은 크레딧 지급 없음, 유료 사용자는 광고 없음)
+            showRewardedCredit = isLoggedIn && !usage.isTreatment && !hasPurchased,
+            isWaitingReward = isWaitingReward,
+            onPurchase = { productId ->
+                val activity = activityContext.findActivity()
+                val placement = "paywall_${request.trigger}"
+                when {
+                    !isLoggedIn -> {
+                        pendingPurchaseProductId = productId
+                        authViewModel.loginWithKakao(activityContext)
+                    }
+                    activity != null -> authViewModel.purchase(activity, productId, placement)
+                }
+            },
+            onLogin = { authViewModel.loginWithKakao(activityContext) },
+            onWatchAd = {
+                val userId = (authState as? AuthUiState.LoggedIn)?.user?.userId
+                val activity = activityContext.findActivity()
+                if (userId != null && activity != null) {
+                    RewardedAdManager.show(
+                        activity = activity,
+                        userId = userId,
+                        placement = "paywall_402",
+                        onRewarded = { authViewModel.refreshCreditsAfterReward() },
+                        onFailed = { message ->
+                            Toast.makeText(activityContext, message, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            },
+            onDismiss = {
+                pendingPurchaseProductId = null
+                viewModel.dismissPaywall()
+            }
+        )
+    }
+
     // ✅ 신규 가입 환영 다이얼로그
     val welcomeUser by authViewModel.welcomeUser.collectAsStateWithLifecycle()
     welcomeUser?.let { user ->
@@ -181,11 +338,12 @@ fun HairMeApp(
             val isWaitingReward by authViewModel.isWaitingReward.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) {
                 AnalyticsHelper.logScreenView("HomeScreen")
-                viewModel.fetchUsage() // 퀵 엔트리 "오늘 무료 N회 남음" 표시용
+                viewModel.fetchUsage() // 퀵 엔트리 남은 횟수 + 무료 정책 실험 그룹
                 RewardedAdManager.load(activityContext) // 버튼을 눌렀을 때 바로 뜨도록 미리 받아둠
+                BillingManager.recoverPurchases() // 서버 검증이 안 끝난 결제가 있으면 마저 반영
             }
             HomeScreen(
-                usageRemaining = usageState.remaining,
+                quotaLabel = quotaLabel(authUiState, usageState),
                 onStartClick = {
                     AnalyticsHelper.logStartAnalysis()
                     viewModel.resetState() // 분석 상태 초기화
@@ -228,7 +386,8 @@ fun HairMeApp(
                         )
                     }
                 },
-                isWaitingReward = isWaitingReward
+                isWaitingReward = isWaitingReward,
+                showRewardedCredit = !usageState.isTreatment && !hasPurchased
             )
         }
 
@@ -301,27 +460,52 @@ fun HairMeApp(
             val hairColorSynthesisState by viewModel.hairColorSynthesisState.collectAsStateWithLifecycle() // ✅ v34
             val usageState by viewModel.usageState.collectAsStateWithLifecycle()
             val authUiState by authViewModel.uiState.collectAsStateWithLifecycle() // 제휴 제품 클릭 로그인 분기용
-            val isWaitingReward by authViewModel.isWaitingReward.collectAsStateWithLifecycle()
+            val detailUnlocked by viewModel.detailUnlocked.collectAsStateWithLifecycle()
             val success = uiState as? AnalysisUiState.Success
+            val memberCredits = (authUiState as? AuthUiState.LoggedIn)?.user?.credits
 
-            // 크레딧 소진(402) 다이얼로그의 "광고 보고 크레딧 받기" 핸들러.
-            // 홈의 진입점과 동일한 경로를 쓰지만 placement를 달리해 어느 쪽이 실제로
-            // 광고를 돌리는지 Firebase에서 구분한다.
-            val showPaywallRewardedAd: () -> Unit = {
-                val userId = (authUiState as? AuthUiState.LoggedIn)?.user?.userId
+            // 퍼스널컬러 상세·전체 랭킹: 대조군은 기존 화면 그대로(숨김), 실험군은 보상형 광고로 연다.
+            // 유료 사용자는 광고 없이 열어 둔다.
+            val detailAccess = when {
+                detailUnlocked || hasPurchased -> DetailAccess.Unlocked
+                usageState.isTreatment -> DetailAccess.Locked
+                else -> DetailAccess.Hidden
+            }
+            val unlockDetailWithAd: () -> Unit = {
                 val activity = activityContext.findActivity()
-                when {
-                    userId.isNullOrBlank() || activity == null ->
-                        Toast.makeText(activityContext, "로그인 후 이용할 수 있어요", Toast.LENGTH_SHORT).show()
-                    else -> RewardedAdManager.show(
+                if (activity != null) {
+                    // user_id 없이 띄운다 → 서버는 크레딧을 지급하지 않고, 앱이 기능만 연다
+                    RewardedAdManager.show(
                         activity = activity,
-                        userId = userId,
-                        placement = "paywall_402",
-                        onRewarded = { authViewModel.refreshCreditsAfterReward() },
+                        userId = null,
+                        placement = "result_unlock",
+                        onRewarded = {
+                            viewModel.unlockDetail()
+                            AnalyticsHelper.logFeatureUnlock("rewarded")
+                        },
                         onFailed = { message ->
                             Toast.makeText(activityContext, message, Toast.LENGTH_SHORT).show()
                         }
                     )
+                }
+            }
+
+            // 첫 분석 뒤 "언제 미용실 가세요?" - 답할 때까지만 보인다
+            var showSalonIntentPrompt by remember { mutableStateOf(!SalonIntentStore.hasAnswered(activityContext)) }
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { /* 거부해도 앱 동작은 같다 - 알림만 안 뜬다 */ }
+            val onSalonIntentAnswered: (String) -> Unit = { intent ->
+                SalonIntentStore.save(activityContext, intent)
+                AnalyticsHelper.logSalonIntentDeclared(intent)
+                NextCutReminder.reschedule(activityContext)
+                showSalonIntentPrompt = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    NextCutReminder.needsPermission(activityContext)
+                ) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    Toast.makeText(activityContext, "그때쯤 알려드릴게요", Toast.LENGTH_SHORT).show()
                 }
             }
 
@@ -379,7 +563,12 @@ fun HairMeApp(
                     elapsedTimeMs = it.elapsedTimeMs, // ✅ 분석 소요 시간
                     gender = selectedGender, // ✅ v28: 성별 전달 (헤어스타일 이름에 표시용)
                     hairColorState = hairColorState, // ✅ v33: 염색색 추천 상태 전달
-                    usageState = usageState,
+                    quotaLabel = quotaLabel(authUiState, usageState),
+                    detailAccess = detailAccess,
+                    fullRanking = it.data.full_ranking,
+                    onUnlockDetail = unlockDetailWithAd,
+                    showSalonIntentPrompt = showSalonIntentPrompt,
+                    onSalonIntentAnswered = onSalonIntentAnswered,
                     onBackClick = {
                         viewModel.resetState() // 홈으로 가기 전 상태 초기화
                         viewModel.resetSynthesisState() // 합성 상태도 초기화
@@ -426,7 +615,12 @@ fun HairMeApp(
                             synthesizedImage = state.synthesizedImage,
                             hairstyleName = state.hairstyleName,
                             beforeImageUri = selectedImageUri, // Before/After 그리드용 원본 사진
-                            usageRemaining = usageState.remaining,
+                            quotaLabel = quotaLabel(authUiState, usageState),
+                            isPreview = state.isPreview,
+                            onHdUpgrade = {
+                                AnalyticsHelper.logHdUpgradeClick("ai_hairstyle", memberCredits != null)
+                                viewModel.requestHdUpgrade(PendingSynthesis.Style(state.hairstyleName), memberCredits)
+                            },
                             onDismiss = { viewModel.resetSynthesisState() },
                             onTryAnother = { viewModel.resetSynthesisState() },
                             // 제휴 제품 추천
@@ -461,12 +655,7 @@ fun HairMeApp(
                             onRetry = {
                                 // 마지막 요청한 스타일로 다시 시도 - 간단히 상태만 초기화
                                 viewModel.resetSynthesisState()
-                            },
-                            isCreditPaywall = state.code == HTTP_INSUFFICIENT_CREDITS,
-                            isLoggedIn = authUiState is AuthUiState.LoggedIn,
-                            isWaitingReward = isWaitingReward,
-                            onWatchAdClick = showPaywallRewardedAd,
-                            onRequestLogin = { authViewModel.loginWithKakao(activityContext) }
+                            }
                         )
                     }
                     SynthesisUiState.Idle -> {
@@ -490,7 +679,15 @@ fun HairMeApp(
                             synthesizedImage = state.synthesizedImage,
                             colorName = state.colorName,
                             beforeImageUri = selectedImageUri, // Before/After 그리드용 원본 사진
-                            usageRemaining = usageState.remaining,
+                            quotaLabel = quotaLabel(authUiState, usageState),
+                            isPreview = state.isPreview,
+                            onHdUpgrade = {
+                                AnalyticsHelper.logHdUpgradeClick("hair_color", memberCredits != null)
+                                viewModel.requestHdUpgrade(
+                                    PendingSynthesis.Color(state.colorName, state.colorHex),
+                                    memberCredits
+                                )
+                            },
                             onDismiss = { viewModel.resetHairColorSynthesisState() },
                             onTryAnother = { viewModel.resetHairColorSynthesisState() }
                         )
@@ -501,12 +698,7 @@ fun HairMeApp(
                             onDismiss = { viewModel.resetHairColorSynthesisState() },
                             onRetry = {
                                 viewModel.resetHairColorSynthesisState()
-                            },
-                            isCreditPaywall = state.code == HTTP_INSUFFICIENT_CREDITS,
-                            isLoggedIn = authUiState is AuthUiState.LoggedIn,
-                            isWaitingReward = isWaitingReward,
-                            onWatchAdClick = showPaywallRewardedAd,
-                            onRequestLogin = { authViewModel.loginWithKakao(activityContext) }
+                            }
                         )
                     }
                     HairColorSynthesisUiState.Idle -> {

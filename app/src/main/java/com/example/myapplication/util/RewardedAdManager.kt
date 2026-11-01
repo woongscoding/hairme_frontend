@@ -19,10 +19,13 @@ import kotlin.concurrent.thread
 /**
  * AdMob 보상형 광고 매니저
  *
- * 크레딧 지급은 앱이 아니라 서버가 한다. 앱은 광고를 보여주면서 SSV 옵션에 user_id만
+ * 보상은 두 종류다.
+ * - 크레딧(대조군): 서버가 지급한다. 앱은 광고를 보여주면서 SSV 옵션에 user_id만
  * 실어 보내고, AdMob 서버가 우리 서버의 SSV 콜백(/api/credits/reward-callback)을 호출해
  * 크레딧 1개를 지급한다. 따라서 [show]의 onRewarded 는 "지급됐다"가 아니라
  * "시청이 끝났으니 곧 지급될 것"이라는 신호이고, 잔액은 서버에서 다시 조회해야 한다.
+ * - 무료 기능 해제(실험군): 원가가 0원인 퍼스널컬러 상세·전체 랭킹을 연다. user_id 없이
+ *   띄우므로 서버는 지급하지 않고, 앱이 onRewarded에서 바로 기능을 연다.
  *
  * Hilt가 비활성화된 프로젝트라 다른 헬퍼들과 같은 object 싱글톤 방식을 따른다.
  */
@@ -110,17 +113,18 @@ object RewardedAdManager {
     /**
      * 광고 표시.
      *
-     * @param userId 서버가 크레딧을 지급할 대상. 이 값이 없으면 서버는 AdMob의 검증 핑과
-     *               구분하지 못해 지급 없이 200을 돌려주므로, 비로그인 상태에서는 호출하지 않는다.
-     * @param placement 계측용 노출 지점 ("home_account" | "paywall_402"). 어느 진입점이
-     *               실제로 광고를 돌리는지 Firebase에서 구분하기 위한 값.
-     * @param onRewarded 시청 완료. 지급은 서버가 비동기로 하므로 잔액은 따로 조회해야 한다.
+     * @param userId 서버가 크레딧을 지급할 대상. null이면 SSV에 user_id를 싣지 않고, 서버는
+     *               AdMob의 검증 핑과 같은 것으로 보고 지급 없이 200을 돌려준다. 크레딧이 아니라
+     *               앱 안의 무료 기능을 여는 보상(실험군)일 때 이렇게 쓴다.
+     * @param placement 계측용 노출 지점 ("home_account" | "paywall_402" | "result_unlock").
+     *               어느 진입점이 실제로 광고를 돌리는지 Firebase에서 구분하기 위한 값.
+     * @param onRewarded 시청 완료. 크레딧 지급은 서버가 비동기로 하므로 잔액은 따로 조회해야 한다.
      * @param onDismissed 광고 화면이 닫힘 (보상 여부와 무관하게 항상 호출)
      * @param onFailed 보여줄 광고가 없거나 표시에 실패
      */
     fun show(
         activity: Activity,
-        userId: String,
+        userId: String?,
         placement: String,
         onRewarded: () -> Unit,
         onDismissed: () -> Unit = {},
@@ -134,12 +138,15 @@ object RewardedAdManager {
             return
         }
 
-        // 서버 SSV 콜백에 user_id를 실어 보낸다 (지급 대상 식별)
-        ad.setServerSideVerificationOptions(
-            ServerSideVerificationOptions.Builder()
-                .setUserId(userId)
-                .build()
-        )
+        // 서버 SSV 콜백에 user_id를 실어 보낸다 (지급 대상 식별).
+        // 기능 해제용 시청이면 싣지 않아야 크레딧이 같이 지급되지 않는다.
+        if (userId != null) {
+            ad.setServerSideVerificationOptions(
+                ServerSideVerificationOptions.Builder()
+                    .setUserId(userId)
+                    .build()
+            )
+        }
 
         var rewarded = false
 

@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.PlayCircleOutline
+import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +51,7 @@ import com.example.myapplication.ui.theme.AtelierUnderlineButton
 import com.example.myapplication.ui.theme.atelierLabel
 import com.example.myapplication.ui.theme.atelierSerif
 import com.example.myapplication.util.AnalyticsHelper
+import com.example.myapplication.util.ShareHelper
 import java.io.OutputStream
 
 /**
@@ -79,7 +80,8 @@ fun SynthesisLoadingDialog(
  * 합성 결과 다이얼로그
  *
  * @param beforeImageUri 원본 사진 (전달 시 Before/After 2열 그리드로 표시)
- * @param usageRemaining 남은 무료 합성 횟수 (헤더 우측 표시용)
+ * @param quotaLabel 헤더 우측 남은 횟수 ("무료 2회 남음" / "크레딧 8개")
+ * @param isPreview 무료 미리보기(512px·워터마크) 결과면 "이 스타일 고화질로 보기" CTA를 띄운다
  */
 @Composable
 fun SynthesisResultDialog(
@@ -88,7 +90,9 @@ fun SynthesisResultDialog(
     onDismiss: () -> Unit,
     onTryAnother: () -> Unit,
     beforeImageUri: Uri? = null,
-    usageRemaining: Int? = null,
+    quotaLabel: String? = null,
+    isPreview: Boolean = false,
+    onHdUpgrade: () -> Unit = {},
     // 제휴 제품 추천 (빈 배열이면 섹션 미노출)
     recommendedProducts: List<RecommendedProduct> = emptyList(),
     disclosure: String? = null,
@@ -101,7 +105,9 @@ fun SynthesisResultDialog(
         heroTitle = "$hairstyleName,\n이렇게 어울려요",
         synthesizedImage = synthesizedImage,
         beforeImageUri = beforeImageUri,
-        usageRemaining = usageRemaining,
+        quotaLabel = quotaLabel,
+        isPreview = isPreview,
+        onHdUpgrade = onHdUpgrade,
         tryAnotherText = stringResource(R.string.synthesis_try_another),
         onDismiss = onDismiss,
         onTryAnother = onTryAnother,
@@ -111,7 +117,7 @@ fun SynthesisResultDialog(
         },
         onShare = {
             AnalyticsHelper.logResultShare("ai_hairstyle", "system_share")
-            shareImage(context, synthesizedImage)
+            ShareHelper.shareResult(context, synthesizedImage, "ai_hairstyle", hairstyleName)
         },
         extraContent = if (recommendedProducts.isNotEmpty()) {
             {
@@ -128,23 +134,14 @@ fun SynthesisResultDialog(
 /**
  * 합성 에러 다이얼로그
  *
- * 크레딧 소진(HTTP 402)일 때는 일반 에러와 다르게 보상형 광고 CTA를 띄운다.
- * 이전에는 "광고를 보고 크레딧을 받아보세요"라는 문구만 보여주고 버튼이 없어서,
- * 사용자가 홈으로 되돌아가 계정 카드를 찾아야 했다 (서버 로그 기준 월 ~88회).
- *
- * @param isCreditPaywall 서버가 402로 거절했는지 (크레딧 소진)
- * @param isWaitingReward 광고 시청 후 서버 SSV 지급을 기다리는 중
+ * 과금 한도(402 크레딧 소진 / 429 비회원 기기 한도)는 여기로 오지 않고 결제 화면
+ * (PaywallDialog)으로 간다. 여기는 일시적 실패만 다룬다.
  */
 @Composable
 fun SynthesisErrorDialog(
     errorMessage: String,
     onDismiss: () -> Unit,
-    onRetry: () -> Unit,
-    isCreditPaywall: Boolean = false,
-    isLoggedIn: Boolean = false,
-    isWaitingReward: Boolean = false,
-    onWatchAdClick: () -> Unit = {},
-    onRequestLogin: () -> Unit = {}
+    onRetry: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -156,18 +153,16 @@ fun SynthesisErrorDialog(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = if (isCreditPaywall) Icons.Outlined.PlayCircleOutline
-                              else Icons.Outlined.ErrorOutline,
+                imageVector = Icons.Outlined.ErrorOutline,
                 contentDescription = null,
-                tint = if (isCreditPaywall) Atelier.BrandViolet else Atelier.TrendAccent,
+                tint = Atelier.TrendAccent,
                 modifier = Modifier.size(40.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = if (isCreditPaywall) "크레딧을 모두 사용했어요"
-                       else stringResource(R.string.synthesis_error),
+                text = stringResource(R.string.synthesis_error),
                 style = atelierSerif(size = 17),
                 textAlign = TextAlign.Center
             )
@@ -175,10 +170,7 @@ fun SynthesisErrorDialog(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = if (isCreditPaywall) {
-                    if (isLoggedIn) "광고를 끝까지 보면 크레딧 1개를 받아 바로 이어서 합성할 수 있어요."
-                    else "로그인하면 가입 보너스 크레딧을 받고 바로 이어서 합성할 수 있어요."
-                } else errorMessage,
+                text = errorMessage,
                 fontSize = 14.sp,
                 lineHeight = 21.sp,
                 color = Atelier.TextSecondary,
@@ -187,64 +179,21 @@ fun SynthesisErrorDialog(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (isCreditPaywall) {
-                // 보상형은 반드시 사용자가 스스로 선택해야 한다 (강제 노출은 AdMob 정책 위반).
-                // 그래서 자동 재생 없이 버튼만 두고, 받게 되는 보상을 문구에 명시한다.
-                if (isLoggedIn) {
-                    AtelierPrimaryButton(
-                        text = if (isWaitingReward) "크레딧 지급 확인 중..." else "광고 보고 크레딧 받기",
-                        onClick = onWatchAdClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        height = 52.dp,
-                        enabled = !isWaitingReward,
-                        trailingContent = if (isWaitingReward) {
-                            {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color.White
-                                )
-                            }
-                        } else {
-                            { Text(text = "+1", fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
-                        }
-                    )
-                } else {
-                    AtelierPrimaryButton(
-                        text = "로그인하고 이어서 합성하기",
-                        onClick = onRequestLogin,
-                        modifier = Modifier.fillMaxWidth(),
-                        height = 52.dp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // 여기서 "다시 시도"는 두지 않는다. onRetry는 상태만 초기화해서
-                // 사실상 닫기와 같고, 크레딧 없이 같은 요청을 다시 보내면 또 402다.
-                // 지급이 끝나면 토스트로 알리고, 사용자는 닫고 스타일을 다시 고른다.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 AtelierSecondaryButton(
                     text = "닫기",
                     onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 )
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    AtelierSecondaryButton(
-                        text = "닫기",
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    )
-                    AtelierPrimaryButton(
-                        text = "다시 시도",
-                        onClick = onRetry,
-                        modifier = Modifier.weight(1f),
-                        height = 48.dp
-                    )
-                }
+                AtelierPrimaryButton(
+                    text = "다시 시도",
+                    onClick = onRetry,
+                    modifier = Modifier.weight(1f),
+                    height = 48.dp
+                )
             }
         }
     }
@@ -279,7 +228,9 @@ fun ColorSynthesisResultDialog(
     onDismiss: () -> Unit,
     onTryAnother: () -> Unit,
     beforeImageUri: Uri? = null,
-    usageRemaining: Int? = null
+    quotaLabel: String? = null,
+    isPreview: Boolean = false,
+    onHdUpgrade: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -288,7 +239,9 @@ fun ColorSynthesisResultDialog(
         heroTitle = "$colorName,\n이렇게 어울려요",
         synthesizedImage = synthesizedImage,
         beforeImageUri = beforeImageUri,
-        usageRemaining = usageRemaining,
+        quotaLabel = quotaLabel,
+        isPreview = isPreview,
+        onHdUpgrade = onHdUpgrade,
         tryAnotherText = "다른 색상 적용해보기",
         onDismiss = onDismiss,
         onTryAnother = onTryAnother,
@@ -298,7 +251,7 @@ fun ColorSynthesisResultDialog(
         },
         onShare = {
             AnalyticsHelper.logResultShare("hair_color", "system_share")
-            shareImage(context, synthesizedImage)
+            ShareHelper.shareResult(context, synthesizedImage, "hair_color", colorName)
         }
     )
 }
@@ -369,7 +322,9 @@ private fun AtelierSynthesisDialog(
     heroTitle: String,
     synthesizedImage: Bitmap,
     beforeImageUri: Uri?,
-    usageRemaining: Int?,
+    quotaLabel: String?,
+    isPreview: Boolean,
+    onHdUpgrade: () -> Unit,
     tryAnotherText: String,
     onDismiss: () -> Unit,
     onTryAnother: () -> Unit,
@@ -393,7 +348,7 @@ private fun AtelierSynthesisDialog(
                 .background(Atelier.Background, Atelier.CardShape)
                 .border(1.dp, Atelier.Border, Atelier.CardShape)
         ) {
-            // 헤더: close + Serif 타이틀 + "N회 남음"
+            // 헤더: close + Serif 타이틀 + 남은 횟수
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -413,9 +368,9 @@ private fun AtelierSynthesisDialog(
                     style = atelierSerif(size = 17),
                     modifier = Modifier.weight(1f)
                 )
-                usageRemaining?.let {
+                quotaLabel?.let {
                     Text(
-                        text = "${it}회 남음",
+                        text = it,
                         fontSize = 12.sp,
                         color = Atelier.TextTertiary,
                         modifier = Modifier.padding(end = 12.dp)
@@ -504,6 +459,12 @@ private fun AtelierSynthesisDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // 무료 미리보기 → 고화질 업그레이드 (결제 화면이 뜨는 두 지점 중 하나)
+                if (isPreview) {
+                    PreviewUpgradeCard(onHdUpgrade = onHdUpgrade)
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 // 저장/공유: 보더 pill 2열
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     AtelierSecondaryButton(
@@ -551,6 +512,51 @@ private fun AtelierSynthesisDialog(
                 )
             }
         }
+    }
+}
+
+/**
+ * 무료 결과(512px·워터마크) 안내 + "이 스타일 고화질로 보기".
+ * 결과 바로 아래에 둬서, 결과가 마음에 든 순간에 업그레이드를 고를 수 있게 한다.
+ */
+@Composable
+private fun PreviewUpgradeCard(onHdUpgrade: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Atelier.Surface, Atelier.CardShape)
+            .border(1.dp, Atelier.BrandVioletSoft, Atelier.CardShape)
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Outlined.HighQuality,
+                contentDescription = null,
+                tint = Atelier.BrandViolet,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "무료 미리보기 · 512px · 워터마크",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Atelier.Ink
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = "고화질(1K)은 워터마크 없이 저장되고, 미용실에서 디자이너에게 보여주기 좋아요.",
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+            color = Atelier.TextSecondary
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        AtelierPrimaryButton(
+            text = "이 스타일 고화질로 보기",
+            onClick = onHdUpgrade,
+            modifier = Modifier.fillMaxWidth(),
+            height = 46.dp
+        )
     }
 }
 
@@ -748,44 +754,5 @@ private fun saveImageToGallery(context: Context, bitmap: Bitmap, styleName: Stri
     } catch (e: Exception) {
         e.printStackTrace()
         Toast.makeText(context, "저장 실패: ${e.message}", Toast.LENGTH_SHORT).show()
-    }
-}
-
-/**
- * 이미지 공유
- */
-private fun shareImage(context: Context, bitmap: Bitmap) {
-    try {
-        // 임시 파일로 저장
-        val cachePath = java.io.File(context.cacheDir, "shared_images")
-        cachePath.mkdirs()
-
-        val file = java.io.File(cachePath, "HairMe_shared_${System.currentTimeMillis()}.png")
-        val outputStream = java.io.FileOutputStream(file)
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-        outputStream.close()
-
-        // FileProvider URI 생성
-        val uri = androidx.core.content.FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file
-        )
-
-        // 공유 인텐트
-        val shareIntent = android.content.Intent().apply {
-            action = android.content.Intent.ACTION_SEND
-            putExtra(android.content.Intent.EXTRA_STREAM, uri)
-            type = "image/png"
-            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-
-        context.startActivity(
-            android.content.Intent.createChooser(shareIntent, "헤어스타일 공유")
-        )
-
-    } catch (e: Exception) {
-        e.printStackTrace()
-        Toast.makeText(context, "공유 실패: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }

@@ -35,7 +35,7 @@ android {
         applicationId = "com.hairme.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 95
+        versionCode = 96
         versionName = "5.15.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -93,6 +93,11 @@ android {
 
     kotlinOptions {
         jvmTarget = "11"
+    }
+
+    // 로컬 유닛 테스트에서 android.util.Log 등 프레임워크 스텁이 예외 대신 기본값을 돌려주게
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 
     buildFeatures {
@@ -199,6 +204,22 @@ dependencies {
     implementation("com.google.android.gms:play-services-ads:23.6.0")
 
     // ================================
+    // Google Play Billing (크레딧 인앱 결제 - 검증·지급은 서버 /api/credits/purchase)
+    // Kotlin 1.9 컴파일러와 메타데이터 충돌을 피하려고 -ktx 대신 Java 아티팩트를 쓴다
+    // ================================
+    implementation("com.android.billingclient:billing:8.0.0")
+
+    // ================================
+    // Play Install Referrer (공유발 설치 측정)
+    // ================================
+    implementation("com.android.installreferrer:installreferrer:2.2")
+
+    // ================================
+    // WorkManager ("다음 커트" 리마인드 알림 예약)
+    // ================================
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // ================================
     // Dependency Injection (Hilt) - 임시 비활성화
     // ================================
     // implementation("com.google.dagger:hilt-android:2.48")
@@ -227,6 +248,7 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.8")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("app.cash.turbine:turbine:1.0.0") // StateFlow 테스팅
+    testImplementation(kotlin("test-junit")) // kotlin.test 단언 (JUnit4 연동)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -163,6 +163,35 @@ fun serverErrorMessage(errorBody: String?, code: Int): String {
     return candidates.firstOrNull { it.containsHangul() } ?: fallbackErrorMessage(code)
 }
 
+/**
+ * 서버 에러 본문의 세부 사유.
+ *
+ * 429는 같은 상태 코드로 기기 한도(limit_type="device")·IP 한도("ip")·분당 제한
+ * (error="rate_limit_exceeded")를 모두 내려준다. 결제 화면은 기기 한도일 때만 띄워야 하므로
+ * limit_type이 있으면 그것을, 없으면 error 코드를 돌려준다.
+ */
+fun serverErrorReason(errorBody: String?): String? = try {
+    val root = errorBody?.let { JsonParser.parseString(it) }
+    if (root != null && root.isJsonObject) {
+        val obj = root.asJsonObject
+        obj.stringOrNull("limit_type") ?: obj.stringOrNull("error")
+    } else null
+} catch (e: JsonParseException) {
+    null
+}
+
+/**
+ * 서버 에러 본문의 문자열 필드 하나 (없거나 JSON이 아니면 null).
+ *
+ * 기기 한도 429의 limit_detail("daily"|"lifetime"), 결제 거절의 error 코드 등을 읽는다.
+ */
+fun serverErrorField(errorBody: String?, key: String): String? = try {
+    val root = errorBody?.let { JsonParser.parseString(it) }
+    if (root != null && root.isJsonObject) root.asJsonObject.stringOrNull(key) else null
+} catch (e: JsonParseException) {
+    null
+}
+
 /** 본문이 없거나 쓸 문장이 없을 때의 상태 코드별 안내 */
 fun fallbackErrorMessage(code: Int): String =
     if (code in 400..599) NetworkError.HttpError(code, "").toUserFriendlyMessage()

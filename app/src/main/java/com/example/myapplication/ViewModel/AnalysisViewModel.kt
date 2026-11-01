@@ -11,11 +11,15 @@ import com.example.myapplication.AnalysisResult
 import com.example.myapplication.data.auth.TokenManager
 import com.example.myapplication.repository.ApiResult
 import com.example.myapplication.repository.HairstyleRepository
+import com.example.myapplication.repository.SynthesisResult
 import com.example.myapplication.util.AnalyticsHelper
 import com.example.myapplication.util.DeviceIdHelper
 // import dagger.hilt.android.lifecycle.HiltViewModel  // Hilt 임시 비활성화
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -44,14 +48,12 @@ sealed class SynthesisUiState {
         // 스타일 맞춤 제휴 제품 (최대 3개, 빈 배열이면 UI에서 섹션 숨김)
         val recommendedProducts: List<com.example.myapplication.network.RecommendedProduct> = emptyList(),
         // 대가성 문구 (서버 제공값 우선, null이면 UI에서 표준 문구 폴백)
-        val disclosure: String? = null
+        val disclosure: String? = null,
+        // 무료 미리보기(512px + 워터마크) → "이 스타일 고화질로 보기" CTA
+        val isPreview: Boolean = false
     ) : SynthesisUiState()
-    /**
-     * @param code 서버 HTTP 상태. 402(크레딧 소진)일 때 UI가 보상형 광고 CTA를 띄운다.
-     *             이 값이 없어서 지금까지 402 다이얼로그에 "광고를 보고 크레딧을
-     *             받아보세요"라는 문구만 있고 버튼이 없었다.
-     */
-    data class Error(val message: String, val code: Int? = null) : SynthesisUiState()
+    /** 과금 한도(402/429)는 여기로 오지 않고 결제 화면([PaywallRequest])으로 간다 */
+    data class Error(val message: String) : SynthesisUiState()
 }
 
 // ✅ v33: 염색색 추천 UI 상태
@@ -70,18 +72,63 @@ sealed class HairColorUiState {
 sealed class HairColorSynthesisUiState {
     object Idle : HairColorSynthesisUiState()
     data class Loading(val colorName: String) : HairColorSynthesisUiState()
-    data class Success(val synthesizedImage: Bitmap, val colorName: String) : HairColorSynthesisUiState()
-    /** @param code 서버 HTTP 상태 (402 = 크레딧 소진 → 광고 CTA) */
-    data class Error(val message: String, val code: Int? = null) : HairColorSynthesisUiState()
+    data class Success(
+        val synthesizedImage: Bitmap,
+        val colorName: String,
+        val colorHex: String,
+        val isPreview: Boolean = false
+    ) : HairColorSynthesisUiState()
+    data class Error(val message: String) : HairColorSynthesisUiState()
 }
 
-// 일일 무료 합성 횟수 상태
+/**
+ * 비로그인 무료 합성 한도 + 무료 정책 실험 그룹.
+ *
+ * freePolicy/experimentArm/signupBonus는 서버(/api/usage)가 내려줄 때만 바뀌고,
+ * 그 전에는 기존 정책(매일 3회, 보상형=크레딧, 가입 보너스 5회)으로 동작한다.
+ */
 data class SynthesisUsageState(
     val remaining: Int = 3,
     val dailyLimit: Int = 3,
     val isLoading: Boolean = false,
-    val isApiError: Boolean = false
-)
+    val isApiError: Boolean = false,
+    val freePolicy: String = FREE_POLICY_DAILY,
+    val experimentArm: String = ARM_CONTROL,
+    val signupBonus: Int = 5
+) {
+    /** 실험군: 보상형 광고가 크레딧 대신 원가 0원 기능(퍼스널컬러 상세·전체 랭킹)을 연다 */
+    val isTreatment: Boolean get() = experimentArm == ARM_TREATMENT
+
+    companion object {
+        const val FREE_POLICY_DAILY = "daily"
+        const val FREE_POLICY_LIFETIME = "lifetime"
+        const val ARM_CONTROL = "control"
+        const val ARM_TREATMENT = "treatment"
+    }
+}
+
+/** 결제 화면 때문에 멈춘 합성. 결제·로그인 후 이어서 실행한다. */
+sealed class PendingSynthesis {
+    data class Style(val name: String) : PendingSynthesis()
+    data class Color(val name: String, val hex: String) : PendingSynthesis()
+}
+
+/**
+ * 결제 화면 요청.
+ *
+ * @param trigger "exhausted"(무료·크레딧 소진 후 합성 탭) | "hd_upgrade"(무료 결과의 "고화질로 보기")
+ * @param limitType "credits"(회원 402) | "device"(비로그인 429) | "client_device"(서버 호출 전 차단) | "preview"
+ * @param limitDetail 기기 한도 429의 limit_detail. "lifetime"(평생 무료 체험 소진)이면
+ *                    다시 채워지지 않으므로 로그인 유도 문구로 띄운다
+ */
+data class PaywallRequest(
+    val trigger: String,
+    val limitType: String,
+    val pending: PendingSynthesis?,
+    val limitDetail: String? = null
+) {
+    val isLifetimeLimit: Boolean get() = limitDetail == SynthesisUsageState.FREE_POLICY_LIFETIME
+}
 
 /**
  * AnalysisViewModel
@@ -90,10 +137,12 @@ data class SynthesisUsageState(
  * AndroidViewModel을 사용하여 Application Context 접근
  */
 // @HiltViewModel  // Hilt 임시 비활성화
-class AnalysisViewModel(application: Application) : AndroidViewModel(application) {
-    // Hilt 비활성화로 인해 Repository를 직접 생성
-    // Application Context를 전달하여 Repository 생성
+// Hilt 비활성화로 인해 Repository를 직접 생성 (Application Context 전달).
+// @JvmOverloads: 기본 ViewModel 팩토리가 찾는 (Application) 생성자를 유지하면서 테스트에서 Repository를 주입한다
+class AnalysisViewModel @JvmOverloads constructor(
+    application: Application,
     private val repository: HairstyleRepository = HairstyleRepository(application)
+) : AndroidViewModel(application) {
 
     companion object {
         private const val TAG = "AnalysisViewModel"
@@ -118,6 +167,22 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
     // 일일 무료 합성 횟수 상태
     private val _usageState = MutableStateFlow(SynthesisUsageState())
     val usageState: StateFlow<SynthesisUsageState> = _usageState.asStateFlow()
+
+    // 결제 화면 (null이면 닫힘)
+    private val _paywall = MutableStateFlow<PaywallRequest?>(null)
+    val paywall: StateFlow<PaywallRequest?> = _paywall.asStateFlow()
+
+    // 합성 응답의 회원 잔액 (AuthViewModel의 "크레딧 N개"를 갱신)
+    private val _memberBalance = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+    val memberBalance: SharedFlow<Int> = _memberBalance.asSharedFlow()
+
+    // 원가 0원 기능(퍼스널컬러 상세·전체 랭킹) 해제 여부 - 분석마다 새로 잠긴다
+    private val _detailUnlocked = MutableStateFlow(false)
+    val detailUnlocked: StateFlow<Boolean> = _detailUnlocked.asStateFlow()
+
+    // 합성 성공 신호 ("다음 커트" 알림 예약용)
+    private val _synthesisSucceeded = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val synthesisSucceeded: SharedFlow<Unit> = _synthesisSucceeded.asSharedFlow()
 
     // 기기 식별 ID
     private val deviceId: String by lazy {
@@ -158,6 +223,7 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
         // ✅ v30: 이미지 URI와 성별 저장 (합성에서 사용)
         currentImageUri = imageUri
         currentGender = gender
+        _detailUnlocked.value = false
 
         // ViewModel 고유의 CoroutineScope에서 실행
         viewModelScope.launch {
@@ -251,18 +317,23 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
             _usageState.value = _usageState.value.copy(isLoading = true)
             when (val result = repository.getUsage(deviceId)) {
                 is ApiResult.Success -> {
+                    val body = result.data
+                    val previous = _usageState.value
                     _usageState.value = SynthesisUsageState(
-                        remaining = result.data.remaining,
-                        dailyLimit = result.data.dailyLimit,
+                        remaining = body.remaining,
+                        dailyLimit = body.dailyLimit,
                         isLoading = false,
-                        isApiError = false
+                        isApiError = false,
+                        freePolicy = body.freePolicy ?: SynthesisUsageState.FREE_POLICY_DAILY,
+                        experimentArm = body.experimentArm ?: SynthesisUsageState.ARM_CONTROL,
+                        signupBonus = body.signupBonus ?: previous.signupBonus
                     )
+                    AnalyticsHelper.setExperimentArm(_usageState.value.experimentArm)
                 }
                 is ApiResult.Error -> {
                     Log.e(TAG, "Usage 조회 실패: ${result.message}")
-                    _usageState.value = SynthesisUsageState(
-                        remaining = 3,
-                        dailyLimit = 3,
+                    // 한도는 서버가 다시 판정하므로 막지 않는다. 실험 그룹은 마지막 값을 유지한다.
+                    _usageState.value = _usageState.value.copy(
                         isLoading = false,
                         isApiError = true
                     )
@@ -271,25 +342,20 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private suspend fun consumeUsage() {
-        when (val result = repository.consumeUsage(deviceId)) {
-            is ApiResult.Success -> {
-                _usageState.value = SynthesisUsageState(
-                    remaining = result.data.remaining,
-                    dailyLimit = result.data.dailyLimit,
-                    isLoading = false,
-                    isApiError = false
-                )
-            }
-            is ApiResult.Error -> {
-                Log.e(TAG, "Usage 소비 실패: ${result.message}")
-                // 낙관적 차감
-                val current = _usageState.value
-                _usageState.value = current.copy(
-                    remaining = (current.remaining - 1).coerceAtLeast(0),
-                    isApiError = true
-                )
-            }
+    /**
+     * 합성 응답의 quota 블록 반영.
+     * 회원은 잔액을 AuthViewModel로 넘기고, 비회원은 남은 횟수를 갱신한다.
+     * (예전에는 /api/usage/consume을 따로 불렀지만 서버에서 폐기돼 아무것도 차감하지 않는다)
+     */
+    private fun applyQuota(result: SynthesisResult) {
+        val quota = result.quota ?: return // 캐시 적중 = 차감 없음
+        when (quota.mode) {
+            "credits" -> quota.balance?.let { _memberBalance.tryEmit(it) }
+            "device" -> _usageState.value = _usageState.value.copy(
+                remaining = quota.remaining ?: _usageState.value.remaining,
+                dailyLimit = quota.dailyLimit ?: _usageState.value.dailyLimit,
+                isApiError = false
+            )
         }
     }
 
@@ -297,16 +363,78 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
     private fun isLoggedIn(): Boolean = TokenManager.getAccessToken() != null
 
     /**
-     * 서버가 과금 한도로 거절한 경우에만 paywall_view를 남긴다.
+     * 서버가 과금 한도로 거절했으면 결제 화면을 띄우고 true.
      *
-     * 광고를 보여줄 기회가 월 몇 번인지 세려면 이 이벤트가 필요하다. 지금까지는
-     * 402/429가 서버 CloudWatch에만 있어서 앱 지표로는 0건이었다.
+     * 429는 IP 한도·분당 제한도 같은 코드라서, 기기 한도(limit_type=device)일 때만 결제 화면이다.
+     * 나머지 429는 "잠시 후 다시" 안내라 일반 에러로 보여준다.
+     * 기기 한도는 limit_detail로 일일("daily")·평생("lifetime", 실험군 무료 체험)을 구분한다.
      */
-    private fun logPaywallIfQuotaDenied(code: Int?) {
-        when (code) {
-            402 -> AnalyticsHelper.logPaywallView("credits", isLoggedIn = true)
-            429 -> AnalyticsHelper.logPaywallView("device", isLoggedIn = isLoggedIn())
+    private fun openPaywallIfQuotaDenied(error: ApiResult.Error, pending: PendingSynthesis): Boolean {
+        val limitType = when {
+            error.code == HairstyleRepository.HTTP_INSUFFICIENT_CREDITS -> "credits"
+            error.code == 429 && error.reason == "device" -> "device"
+            else -> return false
         }
+        val limitDetail = error.limitDetail.takeIf { limitType == "device" }
+        if (limitType == "device") {
+            val usage = _usageState.value
+            _usageState.value = usage.copy(
+                remaining = 0,
+                isApiError = false,
+                // /api/usage를 받기 전에 막힌 경우에도 화면 문구("무료 체험")가 맞게
+                freePolicy = if (limitDetail == SynthesisUsageState.FREE_POLICY_LIFETIME) {
+                    SynthesisUsageState.FREE_POLICY_LIFETIME
+                } else {
+                    usage.freePolicy
+                }
+            )
+        }
+        _paywall.value = PaywallRequest("exhausted", limitType, pending, limitDetail)
+        return true
+    }
+
+    /** 결제 화면 닫기 */
+    fun dismissPaywall() {
+        _paywall.value = null
+    }
+
+    /**
+     * 결제(또는 로그인 보너스)로 합성할 수 있게 됐을 때 멈췄던 합성을 이어서 실행한다.
+     */
+    fun resumePendingSynthesis() {
+        val pending = _paywall.value?.pending
+        _paywall.value = null
+        when (pending) {
+            is PendingSynthesis.Style -> synthesizeHairstyle(pending.name)
+            is PendingSynthesis.Color -> synthesizeHairColor(pending.name, pending.hex)
+            null -> Unit
+        }
+    }
+
+    /**
+     * 무료 미리보기 결과의 "이 스타일 고화질로 보기".
+     *
+     * 회원 합성은 1K 고화질이라, 크레딧이 남은 회원이면 같은 스타일을 바로 다시 합성한다.
+     * 비회원이거나 크레딧이 없으면 결제 화면(비회원은 로그인 보너스 안내)을 띄운다.
+     *
+     * @param memberCredits 회원 잔액. 비로그인이면 null
+     */
+    fun requestHdUpgrade(pending: PendingSynthesis, memberCredits: Int?) {
+        resetSynthesisState()
+        resetHairColorSynthesisState()
+        if (memberCredits != null && memberCredits > 0) {
+            when (pending) {
+                is PendingSynthesis.Style -> synthesizeHairstyle(pending.name)
+                is PendingSynthesis.Color -> synthesizeHairColor(pending.name, pending.hex)
+            }
+        } else {
+            _paywall.value = PaywallRequest("hd_upgrade", "preview", pending)
+        }
+    }
+
+    /** 보상형 광고 시청 또는 유료 사용자 → 퍼스널컬러 상세·전체 랭킹 열기 */
+    fun unlockDetail() {
+        _detailUnlocked.value = true
     }
 
     /**
@@ -337,9 +465,8 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
      */
     fun synthesizeHairstyle(hairstyleName: String) {
         if (!canSynthesize()) {
-            Log.e(TAG, "❌ 합성 불가: 일일 무료 횟수 소진")
-            AnalyticsHelper.logPaywallView("client_device", isLoggedIn = false)
-            _synthesisState.value = SynthesisUiState.Error("오늘의 무료 합성 횟수(3회)를 모두 사용했습니다. 내일 다시 이용해주세요!")
+            Log.d(TAG, "합성 불가: 무료 횟수 소진 → 결제 화면")
+            _paywall.value = PaywallRequest("exhausted", "client_device", PendingSynthesis.Style(hairstyleName))
             return
         }
 
@@ -358,21 +485,24 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
                 is ApiResult.Success -> {
                     Log.d(TAG, "✅ 헤어스타일 합성 성공: $hairstyleName")
                     AnalyticsHelper.logSynthesisResult("ai_hairstyle", hairstyleName, success = true)
-                    consumeUsage()
+                    applyQuota(result.data)
                     _synthesisState.value = SynthesisUiState.Success(
                         synthesizedImage = result.data.image,
                         hairstyleName = hairstyleName,
                         recommendedProducts = result.data.recommendedProducts,
-                        disclosure = result.data.disclosure
+                        disclosure = result.data.disclosure,
+                        isPreview = result.data.isPreview
                     )
+                    _synthesisSucceeded.tryEmit(Unit)
                 }
                 is ApiResult.Error -> {
                     Log.e(TAG, "❌ 헤어스타일 합성 실패: ${result.message} (code=${result.code})")
                     AnalyticsHelper.logSynthesisResult(
                         "ai_hairstyle", hairstyleName, success = false, code = result.code
                     )
-                    logPaywallIfQuotaDenied(result.code)
-                    _synthesisState.value = SynthesisUiState.Error(result.message, result.code)
+                    _synthesisState.value =
+                        if (openPaywallIfQuotaDenied(result, PendingSynthesis.Style(hairstyleName))) SynthesisUiState.Idle
+                        else SynthesisUiState.Error(result.message)
                 }
             }
         }
@@ -492,9 +622,8 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
      */
     fun synthesizeHairColor(colorName: String, colorHex: String) {
         if (!canSynthesize()) {
-            Log.e(TAG, "❌ 합성 불가: 일일 무료 횟수 소진")
-            AnalyticsHelper.logPaywallView("client_device", isLoggedIn = false)
-            _hairColorSynthesisState.value = HairColorSynthesisUiState.Error("오늘의 무료 합성 횟수(3회)를 모두 사용했습니다. 내일 다시 이용해주세요!")
+            Log.d(TAG, "염색 합성 불가: 무료 횟수 소진 → 결제 화면")
+            _paywall.value = PaywallRequest("exhausted", "client_device", PendingSynthesis.Color(colorName, colorHex))
             return
         }
 
@@ -513,19 +642,23 @@ class AnalysisViewModel(application: Application) : AndroidViewModel(application
                 is ApiResult.Success -> {
                     Log.d(TAG, "✅ 염색색 합성 성공: $colorName")
                     AnalyticsHelper.logSynthesisResult("hair_color", colorName, success = true)
-                    consumeUsage()
+                    applyQuota(result.data)
                     _hairColorSynthesisState.value = HairColorSynthesisUiState.Success(
-                        synthesizedImage = result.data,
-                        colorName = colorName
+                        synthesizedImage = result.data.image,
+                        colorName = colorName,
+                        colorHex = colorHex,
+                        isPreview = result.data.isPreview
                     )
+                    _synthesisSucceeded.tryEmit(Unit)
                 }
                 is ApiResult.Error -> {
                     Log.e(TAG, "❌ 염색색 합성 실패: ${result.message} (code=${result.code})")
                     AnalyticsHelper.logSynthesisResult(
                         "hair_color", colorName, success = false, code = result.code
                     )
-                    logPaywallIfQuotaDenied(result.code)
-                    _hairColorSynthesisState.value = HairColorSynthesisUiState.Error(result.message, result.code)
+                    _hairColorSynthesisState.value =
+                        if (openPaywallIfQuotaDenied(result, PendingSynthesis.Color(colorName, colorHex))) HairColorSynthesisUiState.Idle
+                        else HairColorSynthesisUiState.Error(result.message)
                 }
             }
         }

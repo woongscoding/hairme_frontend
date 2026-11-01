@@ -43,7 +43,9 @@ data class ApiResponse(
 @Keep
 data class AnalysisData(
     val analysis: Analysis,
-    val recommendations: List<Recommendation>
+    val recommendations: List<Recommendation>,
+    // 전체 스타일 랭킹 (보상형 광고로 여는 무료 기능). 서버가 아직 내려주지 않으면 null
+    val full_ranking: List<RankedStyle>? = null
 ) {
     /**
      * 앱의 AnalysisResult로 변환
@@ -52,10 +54,18 @@ data class AnalysisData(
         return com.example.myapplication.AnalysisResult(
             face_shape = analysis.face_shape,
             skin_tone = analysis.personal_color,
-            recommended_styles = recommendations.map { it.toHairstyleRecommendation() }
+            recommended_styles = recommendations.map { it.toHairstyleRecommendation() },
+            full_ranking = full_ranking.orEmpty().map { it.style_name }
         )
     }
 }
+
+/** 전체 랭킹 항목 (점수 순으로 정렬돼 내려온다) */
+@Keep
+data class RankedStyle(
+    val style_name: String,
+    val score: Double? = null
+)
 
 /**
  * 얼굴 분석 정보
@@ -149,5 +159,21 @@ data class SynthesisResponse(
     @SerializedName("recommended_products")
     val recommendedProducts: List<RecommendedProduct> = emptyList(),
     // 대가성 문구: 서버가 함께 내려주면 그대로 사용, 없으면 UI에서 표준 문구로 폴백
-    val disclosure: String? = null
+    val disclosure: String? = null,
+    // 과금 결과. 회원 {"mode":"credits","balance"}, 비회원 {"mode":"device",...}, 캐시 적중이면 null
+    val quota: SynthesisQuota? = null,
+    // 무료 미리보기(512px + 워터마크) 결과인지. 구버전 서버는 필드가 없다(null = 일반 결과)
+    @SerializedName("is_preview")
+    val isPreview: Boolean? = null
+)
+
+/** 합성 응답의 quota 블록 */
+@Keep
+data class SynthesisQuota(
+    val mode: String? = null,
+    val balance: Int? = null,
+    @SerializedName("daily_limit")
+    val dailyLimit: Int? = null,
+    val used: Int? = null,
+    val remaining: Int? = null
 )

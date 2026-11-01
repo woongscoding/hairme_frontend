@@ -9,7 +9,9 @@ import androidx.annotation.Keep
 data class AnalysisResult(
     val face_shape: String,
     val skin_tone: String,
-    val recommended_styles: List<HairstyleRecommendation>
+    val recommended_styles: List<HairstyleRecommendation>,
+    // 전체 스타일 랭킹 (스타일 이름, 점수 순). 서버 미지원이면 빈 목록
+    val full_ranking: List<String> = emptyList()
 )
 
 /**

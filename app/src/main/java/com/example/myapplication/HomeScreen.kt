@@ -60,7 +60,7 @@ fun HomeScreen(
     onStartClick: () -> Unit,
     onFindSalonClick: () -> Unit = {},
     modifier: Modifier = Modifier,
-    usageRemaining: Int? = null,
+    quotaLabel: String? = null,
     recentAnalyses: List<RecentAnalysisUi> = emptyList(),
     onHistoryClick: (() -> Unit)? = null,
     authUiState: AuthUiState = AuthUiState.LoggedOut,
@@ -68,7 +68,9 @@ fun HomeScreen(
     onLogoutClick: () -> Unit = {},
     onMyResultsClick: () -> Unit = {},
     onWatchAdClick: () -> Unit = {},
-    isWaitingReward: Boolean = false
+    isWaitingReward: Boolean = false,
+    // 대조군 회원에게만 "광고 보고 크레딧 받기" (실험군은 크레딧 지급 없음, 유료 사용자는 광고 없음)
+    showRewardedCredit: Boolean = true
 ) {
     Column(
         modifier = modifier
@@ -98,7 +100,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             QuickEntryGrid(
-                usageRemaining = usageRemaining,
+                quotaLabel = quotaLabel,
                 onFindSalonClick = onFindSalonClick,
                 onVirtualStylingClick = onStartClick
             )
@@ -111,7 +113,8 @@ fun HomeScreen(
                 onLogoutClick = onLogoutClick,
                 onMyResultsClick = onMyResultsClick,
                 onWatchAdClick = onWatchAdClick,
-                isWaitingReward = isWaitingReward
+                isWaitingReward = isWaitingReward,
+                showRewardedCredit = showRewardedCredit
             )
 
             if (recentAnalyses.isNotEmpty()) {
@@ -261,7 +264,8 @@ private fun AccountSection(
     onLogoutClick: () -> Unit,
     onMyResultsClick: () -> Unit,
     onWatchAdClick: () -> Unit,
-    isWaitingReward: Boolean
+    isWaitingReward: Boolean,
+    showRewardedCredit: Boolean
 ) {
     when (authUiState) {
         is AuthUiState.LoggedIn -> LoggedInCard(
@@ -269,7 +273,8 @@ private fun AccountSection(
             onLogoutClick = onLogoutClick,
             onMyResultsClick = onMyResultsClick,
             onWatchAdClick = onWatchAdClick,
-            isWaitingReward = isWaitingReward
+            isWaitingReward = isWaitingReward,
+            showRewardedCredit = showRewardedCredit
         )
         AuthUiState.LoggedOut -> KakaoLoginButton(
             onClick = onKakaoLoginClick,
@@ -289,7 +294,8 @@ private fun LoggedInCard(
     onLogoutClick: () -> Unit,
     onMyResultsClick: () -> Unit,
     onWatchAdClick: () -> Unit,
-    isWaitingReward: Boolean
+    isWaitingReward: Boolean,
+    showRewardedCredit: Boolean
 ) {
     AtelierCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -354,9 +360,11 @@ private fun LoggedInCard(
                 )
             }
 
+            if (!showRewardedCredit) return@Column
+
             AtelierDividerLine(modifier = Modifier.padding(horizontal = 18.dp))
 
-            // 보상형 광고로 크레딧 충전 (지급은 서버 SSV 콜백이 처리, 하루 5회 상한)
+            // 보상형 광고로 크레딧 충전 (지급은 서버 SSV 콜백이 처리, 하루 3회 상한)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -442,7 +450,7 @@ private fun KakaoLoginButton(
 
 @Composable
 private fun QuickEntryGrid(
-    usageRemaining: Int?,
+    quotaLabel: String?,
     onFindSalonClick: () -> Unit,
     onVirtualStylingClick: () -> Unit
 ) {
@@ -457,7 +465,7 @@ private fun QuickEntryGrid(
         QuickEntryCard(
             icon = Icons.Default.AutoAwesome,
             title = "가상 스타일링",
-            description = "오늘 무료 ${usageRemaining ?: 3}회 남음",
+            description = quotaLabel ?: "사진 한 장으로 체험",
             onClick = onVirtualStylingClick,
             modifier = Modifier.weight(1f)
         )
@@ -570,7 +578,7 @@ private fun RecentAnalysisSection(
 private fun HomeScreenPreview() {
     HomeScreen(
         onStartClick = {},
-        usageRemaining = 3,
+        quotaLabel = "오늘 무료 3회 남음",
         recentAnalyses = listOf(
             RecentAnalysisUi(title = "계란형 · 여름 쿨톤", meta = "7월 12일 · 스타일 3건")
         )

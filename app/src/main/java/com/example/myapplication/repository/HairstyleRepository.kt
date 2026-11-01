@@ -13,6 +13,7 @@ import com.example.myapplication.network.HairstyleApiService
 import com.example.myapplication.network.ProductClickRequest
 import com.example.myapplication.network.ProductClickResponse
 import com.example.myapplication.network.RecommendedProduct
+import com.example.myapplication.network.SynthesisQuota
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -28,6 +29,8 @@ import com.example.myapplication.util.toNetworkError
 import com.example.myapplication.util.toUserFriendlyMessage
 import com.example.myapplication.util.displayableOrFallback
 import com.example.myapplication.util.serverErrorMessage
+import com.example.myapplication.util.serverErrorReason
+import com.example.myapplication.util.serverErrorField
 import com.example.myapplication.data.local.AnalysisHistoryDao
 import com.example.myapplication.data.local.AnalysisHistoryEntity
 import kotlinx.coroutines.flow.Flow
@@ -39,7 +42,11 @@ import kotlinx.coroutines.flow.map
 data class SynthesisResult(
     val image: Bitmap,
     val recommendedProducts: List<RecommendedProduct> = emptyList(),
-    val disclosure: String? = null
+    val disclosure: String? = null,
+    // 과금 결과 (회원 잔액 / 비회원 남은 횟수). 캐시 적중이면 null
+    val quota: SynthesisQuota? = null,
+    // 무료 미리보기(512px + 워터마크)면 true → 결과 화면에 "고화질로 보기" CTA
+    val isPreview: Boolean = false
 )
 
 /**
@@ -49,16 +56,18 @@ data class SynthesisResult(
  * Context를 생성자로 받도록 수정
  */
 class HairstyleRepository(
-    private val context: Context
+    private val context: Context,
+    // 테스트에서 가짜 API를 넣는 자리 (기본값은 실제 Retrofit 클라이언트)
+    apiServiceProvider: () -> HairstyleApiService = {
+        com.example.myapplication.network.RetrofitClient.hairstyleApiService
+    }
 ) {
 
     // Hilt 비활성화로 인해 수동으로 의존성 생성
     // TODO: Hilt 재활성화 후 생성자 주입으로 변경
 
     // Hairstyle Lambda용 API (얼굴 분석, 헤어스타일 합성)
-    private val apiService: HairstyleApiService by lazy {
-        com.example.myapplication.network.RetrofitClient.hairstyleApiService
-    }
+    private val apiService: HairstyleApiService by lazy(apiServiceProvider)
 
     // Beauty Lambda용 API (염색색 추천/합성, 퍼스널컬러) - 2025-12-31 분리
     private val beautyApiService: com.example.myapplication.network.BeautyApiService by lazy {
@@ -85,8 +94,7 @@ class HairstyleRepository(
 
         /** 서버가 크레딧 부족 시 내려주는 코드 (core/quota.py) */
         const val HTTP_INSUFFICIENT_CREDITS = 402
-        private const val INSUFFICIENT_CREDITS_MESSAGE =
-            "크레딧을 모두 사용했어요. 광고를 보고 크레딧을 받아보세요."
+        private const val INSUFFICIENT_CREDITS_MESSAGE = "크레딧을 모두 사용했어요."
         private const val MAX_IMAGE_WIDTH = 1024
         private const val MAX_IMAGE_HEIGHT = 1024
         private const val JPEG_QUALITY = 85
@@ -438,8 +446,11 @@ class HairstyleRepository(
                     ApiResult.Success(
                         SynthesisResult(
                             image = bitmap,
-                            recommendedProducts = synthesisResponse.recommendedProducts,
-                            disclosure = synthesisResponse.disclosure
+                            // Gson은 필드가 없으면 기본값 대신 null을 넣는다
+                            recommendedProducts = synthesisResponse.recommendedProducts.orEmpty(),
+                            disclosure = synthesisResponse.disclosure,
+                            quota = synthesisResponse.quota,
+                            isPreview = synthesisResponse.isPreview == true
                         )
                     )
                 } catch (e: Exception) {
@@ -449,11 +460,16 @@ class HairstyleRepository(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "서버 오류"
                 Log.e(TAG, "❌ API 실패 (${response.code()}): $errorMsg")
-                // 402 = 서버가 크레딧 부족으로 거부 (core/quota.py) - UI에서 광고 CTA를 띄운다
+                // 402 = 크레딧 부족, 429 + limit_type=device = 비회원 무료 한도 → UI가 결제 화면을 띄운다
                 if (response.code() == HTTP_INSUFFICIENT_CREDITS) {
                     ApiResult.Error(INSUFFICIENT_CREDITS_MESSAGE, HTTP_INSUFFICIENT_CREDITS)
                 } else {
-                    ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
+                    ApiResult.Error(
+                        serverErrorMessage(errorMsg, response.code()),
+                        response.code(),
+                        serverErrorReason(errorMsg),
+                        serverErrorField(errorMsg, "limit_detail")
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -543,14 +559,14 @@ class HairstyleRepository(
      * @param imageUri 사용자 얼굴 사진 URI
      * @param colorName 염색색 이름 (예: 밀크브라운)
      * @param colorHex 염색색 HEX 코드 (예: #C4A484)
-     * @return 합성된 이미지 Bitmap 또는 에러
+     * @return 합성 이미지 + 과금 결과(SynthesisResult) 또는 에러
      */
     suspend fun synthesizeHairColor(
         imageUri: Uri,
         colorName: String,
         colorHex: String,
         deviceId: String
-    ): ApiResult<Bitmap> = withContext(Dispatchers.IO) {
+    ): ApiResult<SynthesisResult> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🎨 염색색 합성 시작")
             Log.d(TAG, "   - 색상: $colorName ($colorHex)")
@@ -607,7 +623,13 @@ class HairstyleRepository(
                     }
 
                     Log.d(TAG, "✅ 염색색 합성 완료 (${synthesisResponse.processing_time}초)")
-                    ApiResult.Success(bitmap)
+                    ApiResult.Success(
+                        SynthesisResult(
+                            image = bitmap,
+                            quota = synthesisResponse.quota,
+                            isPreview = synthesisResponse.is_preview == true
+                        )
+                    )
                 } catch (e: Exception) {
                     Log.e(TAG, "❌ Base64 디코딩 실패: ${e.message}")
                     return@withContext ApiResult.Error("이미지 처리에 실패했습니다")
@@ -615,11 +637,16 @@ class HairstyleRepository(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "서버 오류"
                 Log.e(TAG, "❌ API 실패 (${response.code()}): $errorMsg")
-                // 402 = 서버가 크레딧 부족으로 거부 (core/quota.py) - UI에서 광고 CTA를 띄운다
+                // 402 = 크레딧 부족, 429 + limit_type=device = 비회원 무료 한도 → UI가 결제 화면을 띄운다
                 if (response.code() == HTTP_INSUFFICIENT_CREDITS) {
                     ApiResult.Error(INSUFFICIENT_CREDITS_MESSAGE, HTTP_INSUFFICIENT_CREDITS)
                 } else {
-                    ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
+                    ApiResult.Error(
+                        serverErrorMessage(errorMsg, response.code()),
+                        response.code(),
+                        serverErrorReason(errorMsg),
+                        serverErrorField(errorMsg, "limit_detail")
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -648,26 +675,6 @@ class HairstyleRepository(
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Usage 조회 예외: ${e.message}", e)
-            val networkError = e.toNetworkError()
-            ApiResult.Error(networkError.toUserFriendlyMessage())
-        }
-    }
-
-    suspend fun consumeUsage(deviceId: String): ApiResult<com.example.myapplication.network.UsageResponse> = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "📊 Usage 소비: $deviceId")
-            val response = usageApiService.consumeUsage(deviceId)
-            if (response.isSuccessful && response.body() != null) {
-                val body = response.body()!!
-                Log.d(TAG, "✅ Usage 소비 성공: remaining=${body.remaining}/${body.dailyLimit}")
-                ApiResult.Success(body)
-            } else {
-                val errorMsg = response.errorBody()?.string() ?: "서버 오류"
-                Log.e(TAG, "❌ Usage 소비 실패 (${response.code()}): $errorMsg")
-                ApiResult.Error(serverErrorMessage(errorMsg, response.code()), response.code())
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Usage 소비 예외: ${e.message}", e)
             val networkError = e.toNetworkError()
             ApiResult.Error(networkError.toUserFriendlyMessage())
         }

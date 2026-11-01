@@ -23,6 +23,11 @@
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <!-- ================================ -->
+    <!-- 알림 ("다음 커트" 리마인드, Android 13+ 런타임 권한) -->
+    <!-- ================================ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- ================================ -->
     <!-- GPS 위치 권한 (미용실 찾기 기능) -->
     <!-- ================================ -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -85,6 +90,20 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                공유 링크 App Links: https://hairme.app/s... 를 누르면 앱이 있으면 앱으로 연다.
+                검증에는 https://hairme.app/.well-known/assetlinks.json (패키지명 + 서명 SHA-256)이 필요하고,
+                앱이 없을 때 Play로 보내는 리다이렉트도 웹 쪽 작업이다. ShareHelper.SHORT_LINK_BASE와 같은 호스트.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="hairme.app" />
+                <data android:pathPrefix="/s" />
             </intent-filter>
         </activity>
 

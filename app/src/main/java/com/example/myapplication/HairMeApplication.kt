@@ -6,6 +6,9 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import com.example.myapplication.data.auth.TokenManager
 import com.example.myapplication.util.AnalyticsHelper
+import com.example.myapplication.util.BillingManager
+import com.example.myapplication.util.InstallReferrerTracker
+import com.example.myapplication.util.PaidUserStore
 import com.example.myapplication.util.RewardedAdManager
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.kakao.sdk.common.KakaoSdk
@@ -53,5 +56,12 @@ class HairMeApplication : Application(), ImageLoaderFactory {
         // AdMob SDK 초기화 (보상형 광고)
         // initialize()는 디스크 I/O를 동반해 메인 스레드를 수백 ms 붙잡으므로 백그라운드에서
         RewardedAdManager.initialize(this)
+
+        // Play 결제: 연결 → 상품 조회 → 서버 검증이 안 끝난 구매 복구
+        PaidUserStore.init(this)
+        BillingManager.init(this)
+
+        // 공유 링크발 설치 측정 (설치당 1회)
+        InstallReferrerTracker.trackOnce(this)
     }
 }

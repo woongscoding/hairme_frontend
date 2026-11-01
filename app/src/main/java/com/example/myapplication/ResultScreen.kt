@@ -19,19 +19,17 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.geometry.Offset
@@ -65,9 +63,7 @@ import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.theme.atelierLabel
 import com.example.myapplication.ui.theme.atelierSerif
 import com.example.myapplication.util.AnalyticsHelper
-import com.example.myapplication.util.AnchoredBannerAd
 import com.example.myapplication.viewmodel.HairColorUiState
-import com.example.myapplication.viewmodel.SynthesisUsageState
 import kotlinx.coroutines.launch
 
 /**
@@ -88,14 +84,17 @@ fun ResultScreen(
     elapsedTimeMs: Long = 0, // ✅ 분석 소요 시간
     gender: String = "male", // ✅ v28: 성별 (헤어스타일 이름 앞에 표시)
     hairColorState: HairColorUiState = HairColorUiState.Idle, // ✅ v33: 염색색 추천 상태
-    usageState: SynthesisUsageState = SynthesisUsageState(), // 일일 무료 합성 횟수 상태
+    quotaLabel: String = "", // 추천 섹션 우측 남은 횟수 ("무료 2회 남음" / "크레딧 8개")
+    detailAccess: DetailAccess = DetailAccess.Hidden, // 퍼스널컬러 상세·전체 랭킹 노출 상태
+    fullRanking: List<String> = emptyList(), // 전체 스타일 랭킹 (서버 미지원이면 빈 목록)
+    onUnlockDetail: () -> Unit = {}, // 잠긴 상세 열기 (보상형 광고)
+    showSalonIntentPrompt: Boolean = false, // 첫 분석 뒤 "언제 미용실 가세요?"
+    onSalonIntentAnswered: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
     onFindSalonClick: ((String) -> Unit)? = null, // ✅ v21: 미용실 찾기 콜백
     onSynthesizeClick: ((String) -> Unit)? = null, // ✅ v30: 헤어스타일 합성 콜백
     onSynthesizeHairColor: ((String, String) -> Unit)? = null // ✅ v34: 염색색 합성 콜백 (colorName, colorHex)
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
-
     Scaffold(
         containerColor = Atelier.Background,
         topBar = {
@@ -117,16 +116,7 @@ fun ResultScreen(
                 )
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            // 앵커 배너: Scaffold의 bottomBar에 두면 스크롤 콘텐츠 **밖**에 고정된다.
-            // 분석 결과를 가리지도, 지연시키지도 않는다 (AdMob "콘텐츠를 가리는 배치" 회피).
-            // 광고 단위가 설정되지 않은 빌드에서는 아무것도 그리지 않고 높이 0을 차지한다.
-            AnchoredBannerAd(
-                placement = "result_bottom",
-                modifier = Modifier.navigationBarsPadding()
-            )
-        }
+        // 결과 화면은 광고 없이 둔다 (수익화 v2.1: 앵커 배너 제거, 결과를 공유하고 싶은 화면으로)
     ) { padding ->
         Column(
             modifier = Modifier
@@ -140,6 +130,12 @@ fun ResultScreen(
             // 요약 카드: 얼굴형 / 퍼스널컬러 2분할
             AnalysisSummaryCard(faceShape = faceShape, skinTone = skinTone)
 
+            // 첫 분석 뒤 한 번만: "언제 미용실 가세요?" (재방문 알림 시점에 쓴다)
+            if (showSalonIntentPrompt) {
+                Spacer(modifier = Modifier.height(16.dp))
+                SalonIntentCard(onAnswer = onSalonIntentAnswered)
+            }
+
             Spacer(modifier = Modifier.height(28.dp))
 
             // 추천 헤어스타일 섹션
@@ -147,8 +143,7 @@ fun ResultScreen(
                 styles = recommendedStyles,
                 analysisId = analysisId,
                 gender = gender,
-                usageState = usageState,
-                snackbarHostState = snackbarHostState,
+                quotaLabel = quotaLabel,
                 onSynthesizeClick = onSynthesizeClick
             )
 
@@ -157,8 +152,15 @@ fun ResultScreen(
             // ✅ v33: 염색색 추천 섹션
             HairColorRecommendationSection(
                 hairColorState = hairColorState,
-                usageState = usageState,
-                snackbarHostState = snackbarHostState,
+                onSynthesizeHairColor = onSynthesizeHairColor
+            )
+
+            // 퍼스널컬러 상세 · 전체 스타일 랭킹 (원가 0원 기능 - 실험군은 보상형 광고로 연다)
+            DetailSection(
+                access = detailAccess,
+                hairColorState = hairColorState,
+                fullRanking = fullRanking,
+                onUnlock = onUnlockDetail,
                 onSynthesizeHairColor = onSynthesizeHairColor
             )
 
@@ -235,8 +237,7 @@ private fun RecommendationSection(
     styles: List<HairstyleRecommendation>,
     analysisId: String? = null,
     gender: String = "male",
-    usageState: SynthesisUsageState = SynthesisUsageState(),
-    snackbarHostState: SnackbarHostState? = null,
+    quotaLabel: String = "",
     onSynthesizeClick: ((String) -> Unit)? = null
 ) {
     // ✅ v35: ML 추천과 트렌드 스타일 분리
@@ -268,7 +269,7 @@ private fun RecommendationSection(
     }
 
     Column {
-        // 섹션 헤더: 세리프 제목 + 우측 "가상 체험 N회 남음"
+        // 섹션 헤더: 세리프 제목 + 우측 남은 횟수
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -279,7 +280,7 @@ private fun RecommendationSection(
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "가상 체험 ${usageState.remaining}회 남음",
+                text = quotaLabel,
                 fontSize = 12.sp,
                 color = Atelier.TextTertiary
             )
@@ -297,8 +298,6 @@ private fun RecommendationSection(
                     analysisId = analysisId,
                     styleIndex = originalIndex,
                     gender = gender,
-                    usageState = usageState,
-                    snackbarHostState = snackbarHostState,
                     onSynthesizeClick = onSynthesizeClick,
                     onImageClick = onImageClick
                 )
@@ -310,8 +309,6 @@ private fun RecommendationSection(
                     analysisId = analysisId,
                     styleIndex = originalIndex,
                     gender = gender,
-                    usageState = usageState,
-                    snackbarHostState = snackbarHostState,
                     onSynthesizeClick = onSynthesizeClick,
                     onImageClick = onImageClick
                 )
@@ -339,8 +336,6 @@ private fun RecommendationSection(
                     analysisId = analysisId,
                     styleIndex = originalIndex,
                     gender = gender,
-                    usageState = usageState,
-                    snackbarHostState = snackbarHostState,
                     onSynthesizeClick = onSynthesizeClick,
                     onImageClick = onImageClick,
                     isTrend = true
@@ -588,8 +583,6 @@ private fun HeroRecommendationCard(
     analysisId: String?,
     styleIndex: Int,
     gender: String,
-    usageState: SynthesisUsageState,
-    snackbarHostState: SnackbarHostState?,
     onSynthesizeClick: ((String) -> Unit)?,
     onImageClick: (HairstyleRecommendation, String, Int) -> Unit = { _, _, _ -> }
 ) {
@@ -644,8 +637,6 @@ private fun HeroRecommendationCard(
                     onSynthesizeClick?.let { callback ->
                         SynthesizePillButton(
                             styleName = style.name,
-                            usageState = usageState,
-                            snackbarHostState = snackbarHostState,
                             onSynthesizeClick = callback,
                             modifier = Modifier.weight(1f)
                         )
@@ -685,8 +676,6 @@ private fun CompactRecommendationCard(
     analysisId: String?,
     styleIndex: Int,
     gender: String,
-    usageState: SynthesisUsageState,
-    snackbarHostState: SnackbarHostState?,
     onSynthesizeClick: ((String) -> Unit)?,
     onImageClick: (HairstyleRecommendation, String, Int) -> Unit = { _, _, _ -> },
     isTrend: Boolean = false
@@ -766,8 +755,6 @@ private fun CompactRecommendationCard(
                     onSynthesizeClick?.let { callback ->
                         SynthesizePillButton(
                             styleName = style.name,
-                            usageState = usageState,
-                            snackbarHostState = snackbarHostState,
                             onSynthesizeClick = callback,
                             modifier = Modifier.weight(1f),
                             height = 40.dp
@@ -815,42 +802,24 @@ private fun TrendBadge() {
     )
 }
 
-/** 보더 pill "가상으로 체험하기" — 소진 시 opacity 0.4 disabled + 스낵바 로직 유지 */
+/**
+ * 보더 pill "가상으로 체험하기".
+ * 무료·크레딧을 다 써도 비활성화하지 않는다 - 누르면 결제 화면이 뜬다 (판정은 ViewModel·서버).
+ */
 @Composable
 private fun SynthesizePillButton(
     styleName: String,
-    usageState: SynthesisUsageState,
-    snackbarHostState: SnackbarHostState?,
     onSynthesizeClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     height: androidx.compose.ui.unit.Dp = 44.dp
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    val isExhausted = usageState.remaining <= 0 && !usageState.isApiError
-
     OutlinedButton(
-        onClick = {
-            if (isExhausted) {
-                coroutineScope.launch {
-                    snackbarHostState?.showSnackbar(
-                        "오늘의 무료 합성 횟수(3회)를 모두 사용했습니다. 내일 다시 이용해주세요!"
-                    )
-                }
-            } else {
-                onSynthesizeClick(styleName)
-            }
-        },
-        enabled = !isExhausted,
-        modifier = modifier
-            .height(height)
-            .then(if (isExhausted) Modifier.alpha(0.4f) else Modifier),
+        onClick = { onSynthesizeClick(styleName) },
+        modifier = modifier.height(height),
         shape = Atelier.PillShape,
         border = androidx.compose.foundation.BorderStroke(1.dp, Atelier.Ink),
         contentPadding = PaddingValues(horizontal = 16.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = Atelier.Ink,
-            disabledContentColor = Atelier.Ink
-        )
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = Atelier.Ink)
     ) {
         Text(
             text = stringResource(R.string.synthesis_try_button),
@@ -959,8 +928,6 @@ private suspend fun submitFeedback(
 @Composable
 private fun HairColorRecommendationSection(
     hairColorState: HairColorUiState,
-    usageState: SynthesisUsageState = SynthesisUsageState(),
-    snackbarHostState: SnackbarHostState? = null,
     onSynthesizeHairColor: ((String, String) -> Unit)? = null
 ) {
     // ✅ 섹션 조회 이벤트 (퍼스널컬러 섹션)
@@ -1015,8 +982,6 @@ private fun HairColorRecommendationSection(
                     HairColorCard(
                         color = color,
                         rank = index + 1,
-                        usageState = usageState,
-                        snackbarHostState = snackbarHostState,
                         onSynthesizeClick = onSynthesizeHairColor
                     )
                     if (index < 2) Spacer(modifier = Modifier.height(10.dp))
@@ -1062,13 +1027,8 @@ private fun HairColorRecommendationSection(
 private fun HairColorCard(
     color: HairColorItem,
     rank: Int,
-    usageState: SynthesisUsageState = SynthesisUsageState(),
-    snackbarHostState: SnackbarHostState? = null,
     onSynthesizeClick: ((String, String) -> Unit)? = null
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    val isExhausted = usageState.remaining <= 0 && !usageState.isApiError
-
     AtelierCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -1118,31 +1078,185 @@ private fun HairColorCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 OutlinedButton(
                     onClick = {
-                        if (isExhausted) {
-                            coroutineScope.launch {
-                                snackbarHostState?.showSnackbar(
-                                    "오늘의 무료 합성 횟수(3회)를 모두 사용했습니다. 내일 다시 이용해주세요!"
-                                )
-                            }
-                        } else {
-                            AnalyticsHelper.logItemClick("personal_color", color.name, rank)
-                            callback(color.name, color.hex)
-                        }
+                        AnalyticsHelper.logItemClick("personal_color", color.name, rank)
+                        callback(color.name, color.hex)
                     },
-                    enabled = !isExhausted,
-                    modifier = Modifier
-                        .height(36.dp)
-                        .then(if (isExhausted) Modifier.alpha(0.4f) else Modifier),
+                    modifier = Modifier.height(36.dp),
                     shape = Atelier.PillShape,
                     border = androidx.compose.foundation.BorderStroke(1.dp, Atelier.Ink),
                     contentPadding = PaddingValues(horizontal = 16.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Atelier.Ink,
-                        disabledContentColor = Atelier.Ink
-                    )
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Atelier.Ink)
                 ) {
                     Text(text = "체험", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
+            }
+        }
+    }
+}
+
+// ========================================
+// 퍼스널컬러 상세 · 전체 스타일 랭킹 (원가 0원 기능)
+// ========================================
+
+/** 상세 섹션 노출 상태 */
+enum class DetailAccess {
+    /** 대조군: 섹션 자체를 보여주지 않는다 (기존 화면 유지) */
+    Hidden,
+    /** 실험군: 잠금 카드 + "광고 보고 무료로 열기" */
+    Locked,
+    /** 광고 시청 완료 또는 유료 사용자 */
+    Unlocked
+}
+
+@Composable
+private fun DetailSection(
+    access: DetailAccess,
+    hairColorState: HairColorUiState,
+    fullRanking: List<String>,
+    onUnlock: () -> Unit,
+    onSynthesizeHairColor: ((String, String) -> Unit)?
+) {
+    if (access == DetailAccess.Hidden) return
+    val colors = hairColorState as? HairColorUiState.Success
+    val extraColors = colors?.recommended?.drop(3).orEmpty()
+    val avoid = colors?.avoid.orEmpty()
+    // 열어도 보여줄 게 없으면 팔지 않는다
+    if (extraColors.isEmpty() && avoid.isEmpty() && fullRanking.isEmpty()) return
+
+    Spacer(modifier = Modifier.height(32.dp))
+
+    Column {
+        Text(text = "DETAIL REPORT", style = atelierLabel(size = 11, color = Atelier.BrandVioletSoft))
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = if (fullRanking.isNotEmpty()) "퍼스널컬러 상세 · 전체 스타일 랭킹" else "퍼스널컬러 상세",
+            style = atelierSerif(size = 17)
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+
+        if (access == DetailAccess.Locked) {
+            AtelierCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(20.dp)) {
+                Column {
+                    Text(
+                        text = buildString {
+                            append("추가 추천 컬러, 피해야 할 컬러와 그 이유")
+                            if (fullRanking.isNotEmpty()) append(", 내 얼굴형 기준 스타일 ${fullRanking.size}종 전체 순위")
+                            append("를 볼 수 있어요.")
+                        },
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
+                        color = Atelier.TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    AtelierPrimaryButton(
+                        text = "광고 보고 무료로 열기",
+                        onClick = onUnlock,
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 46.dp,
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Outlined.LockOpen,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    )
+                }
+            }
+            return@Column
+        }
+
+        extraColors.forEachIndexed { index, color ->
+            HairColorCard(
+                color = color,
+                rank = index + 4,
+                onSynthesizeClick = onSynthesizeHairColor
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        if (avoid.isNotEmpty()) {
+            AtelierCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(text = "피해야 할 컬러", style = atelierLabel(size = 11))
+                    avoid.forEach { item ->
+                        Column {
+                            Text(text = item.name, style = atelierSerif(size = 15))
+                            if (!item.reason.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = item.reason,
+                                    fontSize = 12.sp,
+                                    lineHeight = 17.sp,
+                                    color = Atelier.TextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (fullRanking.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            AtelierCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "전체 스타일 랭킹", style = atelierLabel(size = 11))
+                    fullRanking.forEachIndexed { index, name ->
+                        Row {
+                            Text(
+                                text = "${index + 1}",
+                                fontSize = 13.sp,
+                                color = Atelier.TextTertiary,
+                                modifier = Modifier.width(32.dp)
+                            )
+                            Text(text = name, fontSize = 13.sp, color = Atelier.Ink)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ========================================
+// 첫 분석 뒤 "언제 미용실 가세요?" (salon_intent_declared)
+// ========================================
+
+/** 응답 코드 → 표시 문구. 코드는 Firebase·알림 예약에 그대로 쓰인다. */
+val SALON_INTENT_OPTIONS = listOf(
+    "within_2_weeks" to "2주 안에",
+    "within_month" to "한 달 안에",
+    "within_3_months" to "1~3개월 뒤",
+    "undecided" to "아직 모르겠어요"
+)
+
+@Composable
+private fun SalonIntentCard(onAnswer: (String) -> Unit) {
+    AtelierCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(18.dp)) {
+        Column {
+            Text(text = "QUICK QUESTION", style = atelierLabel(size = 11, color = Atelier.BrandVioletSoft))
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(text = "다음에 미용실은 언제 가세요?", style = atelierSerif(size = 16))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "그때쯤 저장한 스타일을 다시 알려드릴게요",
+                fontSize = 12.sp,
+                color = Atelier.TextTertiary
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            SALON_INTENT_OPTIONS.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { (code, label) ->
+                        AtelierSecondaryButton(
+                            text = label,
+                            onClick = { onAnswer(code) },
+                            modifier = Modifier.weight(1f),
+                            height = 40.dp
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
