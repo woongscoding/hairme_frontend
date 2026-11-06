@@ -35,8 +35,8 @@ android {
         applicationId = "com.hairme.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 96
-        versionName = "5.15.1"
+        versionCode = 97
+        versionName = "5.16.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -157,6 +157,15 @@ dependencies {
     // Image Loading (Coil)
     // ================================
     implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // ================================
+    // CameraX (체형 코디 촬영: 점선 실루엣 + 3초 타이머)
+    // ================================
+    val cameraxVersion = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
 
     // ================================
     // Networking (Retrofit + OkHttp)

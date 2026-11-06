@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FaceRetouchingNatural
 import androidx.compose.material.icons.filled.History
@@ -70,7 +71,9 @@ fun HomeScreen(
     onWatchAdClick: () -> Unit = {},
     isWaitingReward: Boolean = false,
     // 대조군 회원에게만 "광고 보고 크레딧 받기" (실험군은 크레딧 지급 없음, 유료 사용자는 광고 없음)
-    showRewardedCredit: Boolean = true
+    showRewardedCredit: Boolean = true,
+    // 체형별 아이템 추천 (헤어 분석과 별도 기능). null 이면 카드를 숨긴다
+    onBodyFashionClick: (() -> Unit)? = null
 ) {
     Column(
         modifier = modifier
@@ -98,6 +101,11 @@ fun HomeScreen(
             MainCtaCard(onStartClick = onStartClick)
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            onBodyFashionClick?.let {
+                BodyFashionCard(onClick = it)
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
             QuickEntryGrid(
                 quotaLabel = quotaLabel,
@@ -246,6 +254,44 @@ private fun MainCtaCard(onStartClick: () -> Unit) {
                         modifier = Modifier.size(16.dp)
                     )
                 }
+            )
+        }
+    }
+}
+
+/** 체형별 아이템 추천 진입 카드 (얼굴형 분석과 별도 버튼) */
+@Composable
+private fun BodyFashionCard(onClick: () -> Unit) {
+    AtelierCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "BODY FIT",
+                    style = atelierLabel(size = 11, color = Atelier.BrandVioletSoft, tracking = 0.16f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "체형별 아이템 추천",
+                    style = atelierSerif(size = 20)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "전신 사진 한 장으로 어울리는 핏 찾기 · 무료",
+                    fontSize = 13.sp,
+                    color = Atelier.TextSecondary
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Icon(
+                imageVector = Icons.Default.Checkroom,
+                contentDescription = null,
+                tint = Atelier.BrandViolet,
+                modifier = Modifier.size(26.dp)
             )
         }
     }

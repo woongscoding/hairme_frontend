@@ -51,19 +51,23 @@ data class HairProfile(
     val faceShape: String? = null,
     @SerializedName("personal_color")
     val personalColor: String? = null,
-    val gender: String? = null
+    val gender: String? = null,
+    // 체형 코디 아이템 클릭일 때만 (broad_shoulder | lower_volume | balanced)
+    @SerializedName("body_type")
+    val bodyType: String? = null
 )
 
 /**
  * POST /api/products/click 요청 바디
  *
- * @param source 호출 화면: "synthesis_result" | "analysis_result" | "browse"
+ * @param style 헤어스타일 이름. 체형 코디 아이템 클릭이면 null
+ * @param source 호출 화면: "synthesis_result" | "analysis_result" | "body_analysis" | "browse"
  */
 @Keep
 data class ProductClickRequest(
     @SerializedName("product_id")
     val productId: String,
-    val style: String,
+    val style: String? = null,
     val source: String,
     @SerializedName("hair_profile")
     val hairProfile: HairProfile? = null,
