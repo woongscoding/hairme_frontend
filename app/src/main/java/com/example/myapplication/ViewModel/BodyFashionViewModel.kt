@@ -56,7 +56,7 @@ class BodyFashionViewModel(
         analyzeJob?.cancel()
         _uiState.value = BodyFashionUiState.Loading
         analyzeJob = viewModelScope.launch {
-            _uiState.value = when (val result = repository.analyzeBody(imageUri, _gender.value)) {
+            _uiState.value = when (val result = repository.analyzeBody(imageUri, _gender.value, deviceId)) {
                 is ApiResult.Success -> BodyFashionUiState.Success(result.data)
                 is ApiResult.Error -> BodyFashionUiState.Error(result.message, isPhotoProblem = result.code == 400)
             }

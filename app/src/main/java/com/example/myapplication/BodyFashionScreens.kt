@@ -261,7 +261,7 @@ fun BodyGuideScreen(
             Spacer(modifier = Modifier.height(8.dp))
             TipRow(
                 icon = Icons.Outlined.Info,
-                text = "사진은 체형 분석에만 쓰고 저장하지 않아요"
+                text = "사진은 서비스 개선을 위해 1년간 보관한 뒤 자동 삭제해요"
             )
             Spacer(modifier = Modifier.height(24.dp))
         }

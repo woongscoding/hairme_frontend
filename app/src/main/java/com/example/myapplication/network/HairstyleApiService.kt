@@ -37,7 +37,8 @@ interface HairstyleApiService {
     @POST("/api/fashion/body-analyze")
     suspend fun analyzeBody(
         @Part file: MultipartBody.Part,
-        @Part gender: MultipartBody.Part
+        @Part gender: MultipartBody.Part,
+        @Part deviceId: MultipartBody.Part
     ): Response<BodyAnalysisResponse>
 
     /**
