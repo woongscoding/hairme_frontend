@@ -45,9 +45,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TimerOff
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -198,8 +197,6 @@ private fun GuideIllustration(figure: GuideFigure, modifier: Modifier = Modifier
 fun BodyGuideScreen(
     gender: String,
     onGenderChange: (String) -> Unit,
-    saveConsent: Boolean,
-    onSaveConsentChange: (Boolean) -> Unit,
     onBackClick: () -> Unit,
     onTakePhotoClick: () -> Unit,
     onGalleryClick: () -> Unit
@@ -261,8 +258,11 @@ fun BodyGuideScreen(
                 icon = Icons.Filled.Timer,
                 text = "폰을 허리 높이에 세워 두고 3초 타이머로 찍으면 편해요"
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            SaveConsentRow(checked = saveConsent, onCheckedChange = onSaveConsentChange)
+            Spacer(modifier = Modifier.height(8.dp))
+            TipRow(
+                icon = Icons.Outlined.Info,
+                text = "사진은 체형 분석에만 쓰고 저장하지 않아요"
+            )
             Spacer(modifier = Modifier.height(24.dp))
         }
 
@@ -364,46 +364,6 @@ private fun ExampleBadge(good: Boolean, text: String?, modifier: Modifier = Modi
         text?.let {
             Spacer(modifier = Modifier.width(4.dp))
             Text(text = it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
-        }
-    }
-}
-
-/** 사진 저장 동의 (선택). 동의하지 않으면 사진은 분석 후 바로 버린다 */
-@Composable
-private fun SaveConsentRow(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    AtelierCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 4.dp, end = 16.dp, top = 6.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Checkbox(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = Atelier.Ink,
-                    uncheckedColor = Atelier.TextTertiary
-                )
-            )
-            Column(modifier = Modifier.padding(top = 12.dp)) {
-                Text(
-                    text = "(선택) 사진 저장에 동의해요",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Atelier.Ink
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "체형 분석 개선 등 서비스 개발에 쓰고 1년 뒤 자동 삭제해요. " +
-                        "동의하지 않으면 사진은 분석 후 바로 지워지고, 분석 결과는 똑같아요.",
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp,
-                    color = Atelier.TextSecondary
-                )
-            }
         }
     }
 }

@@ -263,7 +263,6 @@ fun HairMeApp(
         // ✅ 체형별 아이템 추천: 촬영 가이드 → 카메라 → 결과
         composable("body_guide") {
             val gender by bodyFashionViewModel.gender.collectAsStateWithLifecycle()
-            val saveConsent by bodyFashionViewModel.saveConsent.collectAsStateWithLifecycle()
             LaunchedEffect(Unit) {
                 AnalyticsHelper.logScreenView("BodyGuideScreen")
             }
@@ -271,8 +270,6 @@ fun HairMeApp(
             BodyGuideScreen(
                 gender = gender,
                 onGenderChange = bodyFashionViewModel::setGender,
-                saveConsent = saveConsent,
-                onSaveConsentChange = bodyFashionViewModel::setSaveConsent,
                 onBackClick = { navController.popBackStack() },
                 onTakePhotoClick = { navController.navigate("body_camera") },
                 onGalleryClick = pickPhoto
@@ -295,15 +292,14 @@ fun HairMeApp(
         composable("body_result") {
             val state by bodyFashionViewModel.uiState.collectAsStateWithLifecycle()
             val gender by bodyFashionViewModel.gender.collectAsStateWithLifecycle()
-            val saveConsent by bodyFashionViewModel.saveConsent.collectAsStateWithLifecycle()
             LaunchedEffect(state) {
                 when (val current = state) {
                     is BodyFashionUiState.Success -> {
                         AnalyticsHelper.logScreenView("BodyResultScreen")
-                        AnalyticsHelper.logBodyAnalysisResult(true, gender, bodyInput, saveConsent, current.result.bodyType)
+                        AnalyticsHelper.logBodyAnalysisResult(true, gender, bodyInput, current.result.bodyType)
                     }
                     is BodyFashionUiState.Error ->
-                        AnalyticsHelper.logBodyAnalysisResult(false, gender, bodyInput, saveConsent)
+                        AnalyticsHelper.logBodyAnalysisResult(false, gender, bodyInput)
                     else -> Unit
                 }
             }
