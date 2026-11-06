@@ -38,6 +38,9 @@ import com.example.myapplication.viewmodel.AnalysisUiState
 import com.example.myapplication.viewmodel.AnalysisViewModel
 import com.example.myapplication.viewmodel.AuthUiState
 import com.example.myapplication.viewmodel.AuthViewModel
+import com.example.myapplication.viewmodel.BodyFashionUiState
+import com.example.myapplication.viewmodel.BodyFashionViewModel
+import androidx.activity.compose.BackHandler
 import com.example.myapplication.viewmodel.HairColorUiState
 import com.example.myapplication.viewmodel.MyResultsViewModel
 import com.example.myapplication.viewmodel.HairColorSynthesisUiState
@@ -131,6 +134,26 @@ fun HairMeApp(
                 }
             }
         )
+    }
+
+    // 체형별 아이템 추천 (헤어 분석과 별도 기능)
+    val bodyFashionViewModel: BodyFashionViewModel = run {
+        val application = activityContext.applicationContext as Application
+        viewModel(
+            factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    return BodyFashionViewModel(application) as T
+                }
+            }
+        )
+    }
+    // 마지막 체형 사진 입력 방식 ("camera" | "gallery") - 분석 결과 이벤트에 붙인다
+    var bodyInput by remember { mutableStateOf("camera") }
+    val startBodyAnalysis: (Uri, String) -> Unit = { uri, input ->
+        bodyInput = input
+        bodyFashionViewModel.analyze(uri)
+        navController.navigate("body_result")
     }
 
     // ✅ 로그인 에러 메시지 Toast 표시 (일회성)
@@ -228,8 +251,101 @@ fun HairMeApp(
                         )
                     }
                 },
-                isWaitingReward = isWaitingReward
+                isWaitingReward = isWaitingReward,
+                onBodyFashionClick = {
+                    AnalyticsHelper.logBodyFashionStart()
+                    bodyFashionViewModel.reset()
+                    navController.navigate("body_guide")
+                }
             )
+        }
+
+        // ✅ 체형별 아이템 추천: 촬영 가이드 → 카메라 → 결과
+        composable("body_guide") {
+            val gender by bodyFashionViewModel.gender.collectAsStateWithLifecycle()
+            LaunchedEffect(Unit) {
+                AnalyticsHelper.logScreenView("BodyGuideScreen")
+            }
+            val pickPhoto = rememberBodyPhotoPicker { uri -> startBodyAnalysis(uri, "gallery") }
+            BodyGuideScreen(
+                gender = gender,
+                onGenderChange = bodyFashionViewModel::setGender,
+                onBackClick = { navController.popBackStack() },
+                onTakePhotoClick = { navController.navigate("body_camera") },
+                onGalleryClick = pickPhoto
+            )
+        }
+
+        composable("body_camera") {
+            LaunchedEffect(Unit) {
+                AnalyticsHelper.logScreenView("BodyCameraScreen")
+            }
+            val pickPhoto = rememberBodyPhotoPicker { uri -> startBodyAnalysis(uri, "gallery") }
+            BodyCameraScreen(
+                onCloseClick = { navController.popBackStack() },
+                onGuideClick = { navController.popBackStack() },
+                onGalleryClick = pickPhoto,
+                onPhotoTaken = { uri -> startBodyAnalysis(uri, "camera") }
+            )
+        }
+
+        composable("body_result") {
+            val state by bodyFashionViewModel.uiState.collectAsStateWithLifecycle()
+            val gender by bodyFashionViewModel.gender.collectAsStateWithLifecycle()
+            LaunchedEffect(state) {
+                when (val current = state) {
+                    is BodyFashionUiState.Success -> {
+                        AnalyticsHelper.logScreenView("BodyResultScreen")
+                        AnalyticsHelper.logBodyAnalysisResult(true, gender, bodyInput, current.result.bodyType)
+                    }
+                    is BodyFashionUiState.Error ->
+                        AnalyticsHelper.logBodyAnalysisResult(false, gender, bodyInput)
+                    else -> Unit
+                }
+            }
+            // 다시 찍기: 사진을 고른 화면(카메라 또는 가이드)으로 돌아간다
+            val retake: () -> Unit = {
+                bodyFashionViewModel.reset()
+                navController.popBackStack()
+            }
+            val goHome: () -> Unit = {
+                bodyFashionViewModel.reset()
+                navController.popBackStack("home", inclusive = false)
+            }
+            BackHandler(onBack = retake)
+
+            when (val current = state) {
+                is BodyFashionUiState.Success -> BodyResultScreen(
+                    result = current.result,
+                    onItemClick = { fit ->
+                        AnalyticsHelper.logBodyItemClick(
+                            productId = fit.productId.orEmpty(),
+                            bodyType = current.result.bodyType,
+                            position = current.result.recommended.indexOf(fit)
+                        )
+                        bodyFashionViewModel.openItemLink(
+                            fit = fit,
+                            onLink = { url -> openInExternalBrowser(activityContext, url) },
+                            onFailure = {
+                                Toast.makeText(
+                                    activityContext,
+                                    "상품 페이지를 열지 못했어요. 잠시 후 다시 시도해주세요",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    },
+                    onRetakeClick = retake,
+                    onHomeClick = goHome
+                )
+                is BodyFashionUiState.Error -> BodyErrorScreen(
+                    message = current.message,
+                    isPhotoProblem = current.isPhotoProblem,
+                    onRetakeClick = retake,
+                    onHomeClick = goHome
+                )
+                BodyFashionUiState.Loading, BodyFashionUiState.Idle -> BodyAnalyzingScreen()
+            }
         }
 
         // ✅ 내가 만든 스타일 (회원 합성 결과 히스토리)

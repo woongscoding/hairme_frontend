@@ -269,4 +269,37 @@ object AnalyticsHelper {
             code?.let { putLong("status_code", it.toLong()) }
         })
     }
+
+    // ================================
+    // 체형별 아이템 추천 (헤어 분석과 별도 기능)
+    // ================================
+
+    /** 홈에서 "체형별 아이템 추천" 진입 */
+    fun logBodyFashionStart() {
+        firebaseAnalytics?.logEvent("body_fashion_start", null)
+    }
+
+    /**
+     * 체형 분석 종료 (성공/실패 모두)
+     *
+     * @param bodyType 성공 시 broad_shoulder | lower_volume | balanced
+     * @param input "camera" | "gallery"
+     */
+    fun logBodyAnalysisResult(success: Boolean, gender: String, input: String, bodyType: String? = null) {
+        firebaseAnalytics?.logEvent("body_analysis_result", Bundle().apply {
+            putString("success", success.toString())
+            putString("gender", gender)
+            putString("input", input)
+            bodyType?.let { putString("body_type", it) }
+        })
+    }
+
+    /** 체형 결과의 "쿠팡에서 보기" 탭 */
+    fun logBodyItemClick(productId: String, bodyType: String, position: Int) {
+        firebaseAnalytics?.logEvent("body_item_click", Bundle().apply {
+            putString("product_id", productId)
+            putString("body_type", bodyType)
+            putLong("position", position.toLong())
+        })
+    }
 }

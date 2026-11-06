@@ -154,6 +154,15 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // ================================
+    // CameraX (체형 코디 촬영: 점선 실루엣 + 3초 타이머)
+    // ================================
+    val cameraxVersion = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // ================================
     // Networking (Retrofit + OkHttp)
     // ================================
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

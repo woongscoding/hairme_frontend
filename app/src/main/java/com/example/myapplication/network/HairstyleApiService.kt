@@ -31,6 +31,16 @@ interface HairstyleApiService {
     ): Response<ApiResponse>
 
     /**
+     * 체형 분석 API 호출 (전신 사진 → 체형 + 어울리는 핏)
+     */
+    @Multipart
+    @POST("/api/fashion/body-analyze")
+    suspend fun analyzeBody(
+        @Part file: MultipartBody.Part,
+        @Part gender: MultipartBody.Part
+    ): Response<BodyAnalysisResponse>
+
+    /**
      * 피드백 제출 API 호출
      */
     @POST("/api/feedback/submit")
