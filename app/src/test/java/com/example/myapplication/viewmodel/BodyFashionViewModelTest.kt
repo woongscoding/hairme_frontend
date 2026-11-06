@@ -66,7 +66,7 @@ class BodyFashionViewModelTest {
 
     @Test
     fun `분석 성공이면 결과 상태가 되고 선택한 성별로 요청한다`() = runTest(testDispatcher) {
-        coEvery { repository.analyzeBody(uri, "female") } returns ApiResult.Success(result)
+        coEvery { repository.analyzeBody(uri, "female", false, "device-1") } returns ApiResult.Success(result)
 
         viewModel.setGender("female")
         viewModel.analyze(uri)
@@ -79,7 +79,7 @@ class BodyFashionViewModelTest {
 
     @Test
     fun `분석 실패면 서버 안내 문장을 그대로 보여준다`() = runTest(testDispatcher) {
-        coEvery { repository.analyzeBody(uri, "male") } returns
+        coEvery { repository.analyzeBody(uri, "male", any(), any()) } returns
             ApiResult.Error("머리부터 발끝까지 나오게 찍어주세요", 400)
 
         viewModel.analyze(uri)
@@ -100,7 +100,7 @@ class BodyFashionViewModelTest {
 
     @Test
     fun `reset 하면 진행 중인 분석 결과가 반영되지 않는다`() = runTest(testDispatcher) {
-        coEvery { repository.analyzeBody(any(), any()) } returns ApiResult.Success(result)
+        coEvery { repository.analyzeBody(any(), any(), any(), any()) } returns ApiResult.Success(result)
 
         viewModel.analyze(uri)
         viewModel.reset()
@@ -111,7 +111,7 @@ class BodyFashionViewModelTest {
 
     @Test
     fun `아이템 클릭은 체형 정보와 함께 링크를 발급받는다`() = runTest(testDispatcher) {
-        coEvery { repository.analyzeBody(any(), any()) } returns ApiResult.Success(result)
+        coEvery { repository.analyzeBody(any(), any(), any(), any()) } returns ApiResult.Success(result)
         val request = slot<ProductClickRequest>()
         coEvery { repository.clickProduct(capture(request)) } returns ApiResult.Success(
             ProductClickResponse(success = true, affiliateUrl = "https://link.coupang.com/a/x")
@@ -149,5 +149,17 @@ class BodyFashionViewModelTest {
         advanceUntilIdle()
 
         assertTrue(failed)
+    }
+
+    @Test
+    fun `저장 동의는 기본 해제이고 켜면 요청에 실린다`() = runTest(testDispatcher) {
+        coEvery { repository.analyzeBody(any(), any(), any(), any()) } returns ApiResult.Success(result)
+        assertEquals(false, viewModel.saveConsent.value)
+
+        viewModel.setSaveConsent(true)
+        viewModel.analyze(uri)
+        advanceUntilIdle()
+
+        coVerify { repository.analyzeBody(uri, "male", true, "device-1") }
     }
 }

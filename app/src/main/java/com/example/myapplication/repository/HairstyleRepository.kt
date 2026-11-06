@@ -221,11 +221,14 @@ class HairstyleRepository(
      * 전신 사진으로 체형을 분석해 어울리는 핏을 받아온다 (체형 코디, 무료).
      *
      * 사진은 얼굴 분석과 같은 방식(EXIF 회전 + 1024px 리사이즈)으로 줄여 올린다.
+     * saveConsent=true 면 서버가 사진을 body/originals/ 에 1년 보관한다 (기본 저장 안 함).
      * 400(전신이 안 보임·정면 아님)은 서버가 주는 한국어 안내를 그대로 보여준다.
      */
     suspend fun analyzeBody(
         imageUri: Uri,
-        gender: String
+        gender: String,
+        saveConsent: Boolean,
+        deviceId: String
     ): ApiResult<com.example.myapplication.network.BodyAnalysisResponse> = withContext(Dispatchers.IO) {
         val imageFile = uriToFile(imageUri)
             ?: return@withContext ApiResult.Error("이미지를 처리할 수 없습니다")
@@ -236,8 +239,10 @@ class HairstyleRepository(
                 imageFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
             )
             val genderPart = MultipartBody.Part.createFormData("gender", gender)
-            Log.d(TAG, "🧍 체형 분석 요청 (gender=$gender, ${imageFile.length() / 1024}KB)")
-            val response = apiService.analyzeBody(filePart, genderPart)
+            val consentPart = MultipartBody.Part.createFormData("save_consent", saveConsent.toString())
+            val deviceIdPart = MultipartBody.Part.createFormData("device_id", deviceId)
+            Log.d(TAG, "🧍 체형 분석 요청 (gender=$gender, save=$saveConsent, ${imageFile.length() / 1024}KB)")
+            val response = apiService.analyzeBody(filePart, genderPart, consentPart, deviceIdPart)
             val body = response.body()
             when {
                 response.isSuccessful && body != null && body.success -> ApiResult.Success(body)

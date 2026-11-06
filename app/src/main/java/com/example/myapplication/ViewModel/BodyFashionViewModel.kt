@@ -46,6 +46,22 @@ class BodyFashionViewModel(
     private val _gender = MutableStateFlow("male")
     val gender: StateFlow<String> = _gender.asStateFlow()
 
+    // 사진 저장 동의 (선택, 기본 해제). 한 번 고르면 기기에 기억한다
+    private val prefs by lazy {
+        getApplication<Application>().getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+    }
+    private val _saveConsent = MutableStateFlow(false)
+    val saveConsent: StateFlow<Boolean> = _saveConsent.asStateFlow()
+
+    init {
+        _saveConsent.value = runCatching { prefs.getBoolean(KEY_SAVE_CONSENT, false) }.getOrDefault(false)
+    }
+
+    fun setSaveConsent(consent: Boolean) {
+        _saveConsent.value = consent
+        runCatching { prefs.edit().putBoolean(KEY_SAVE_CONSENT, consent).apply() }
+    }
+
     private var analyzeJob: Job? = null
 
     fun setGender(gender: String) {
@@ -56,7 +72,8 @@ class BodyFashionViewModel(
         analyzeJob?.cancel()
         _uiState.value = BodyFashionUiState.Loading
         analyzeJob = viewModelScope.launch {
-            _uiState.value = when (val result = repository.analyzeBody(imageUri, _gender.value)) {
+            val result = repository.analyzeBody(imageUri, _gender.value, _saveConsent.value, deviceId)
+            _uiState.value = when (result) {
                 is ApiResult.Success -> BodyFashionUiState.Success(result.data)
                 is ApiResult.Error -> BodyFashionUiState.Error(result.message, isPhotoProblem = result.code == 400)
             }
@@ -100,5 +117,7 @@ class BodyFashionViewModel(
 
     private companion object {
         const val TAG = "BodyFashionViewModel"
+        const val PREFS_NAME = "body_fashion"
+        const val KEY_SAVE_CONSENT = "photo_save_consent"
     }
 }

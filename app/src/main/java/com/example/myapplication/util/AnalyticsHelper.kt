@@ -285,11 +285,18 @@ object AnalyticsHelper {
      * @param bodyType 성공 시 broad_shoulder | lower_volume | balanced
      * @param input "camera" | "gallery"
      */
-    fun logBodyAnalysisResult(success: Boolean, gender: String, input: String, bodyType: String? = null) {
+    fun logBodyAnalysisResult(
+        success: Boolean,
+        gender: String,
+        input: String,
+        saveConsent: Boolean,
+        bodyType: String? = null
+    ) {
         firebaseAnalytics?.logEvent("body_analysis_result", Bundle().apply {
             putString("success", success.toString())
             putString("gender", gender)
             putString("input", input)
+            putString("save_consent", saveConsent.toString())
             bodyType?.let { putString("body_type", it) }
         })
     }
