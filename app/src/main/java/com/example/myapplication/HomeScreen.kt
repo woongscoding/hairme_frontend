@@ -1,6 +1,7 @@
 package com.example.myapplication.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -270,10 +271,14 @@ private fun BodyFashionCard(onClick: () -> Unit) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "BODY FIT",
-                    style = atelierLabel(size = 11, color = Atelier.BrandVioletSoft, tracking = 0.16f)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "BODY FIT",
+                        style = atelierLabel(size = 11, color = Atelier.BrandVioletSoft, tracking = 0.16f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    NewBadge()
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "체형별 아이템 추천",
@@ -281,7 +286,7 @@ private fun BodyFashionCard(onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "전신 사진 한 장으로 어울리는 핏 찾기 · 무료",
+                    text = "사진 한 장으로 어울리는 핏 찾기 · 무료",
                     fontSize = 13.sp,
                     color = Atelier.TextSecondary
                 )
@@ -295,6 +300,21 @@ private fun BodyFashionCard(onClick: () -> Unit) {
             )
         }
     }
+}
+
+/** 새 기능 표시 (결과 화면 TREND 배지와 같은 모양, 보라 포인트) */
+@Composable
+private fun NewBadge() {
+    Text(
+        text = "NEW",
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.sp,
+        color = Atelier.BrandViolet,
+        modifier = Modifier
+            .border(1.dp, Atelier.BrandVioletSoft, Atelier.PillShape)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    )
 }
 
 /**

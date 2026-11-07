@@ -16,6 +16,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import com.example.myapplication.ui.theme.Atelier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -413,8 +418,12 @@ fun HairMeApp(
                 showRewardedCredit = !usageState.isTreatment && !hasPurchased,
                 onBodyFashionClick = {
                     AnalyticsHelper.logBodyFashionStart()
-                    bodyFashionViewModel.reset()
-                    navController.navigate("body_guide")
+                    if (bodyFashionViewModel.showLastResult()) {
+                        navController.navigate("body_result")
+                    } else {
+                        bodyFashionViewModel.reset()
+                        navController.navigate("body_guide")
+                    }
                 }
             )
         }
@@ -455,17 +464,27 @@ fun HairMeApp(
                 when (val current = state) {
                     is BodyFashionUiState.Success -> {
                         AnalyticsHelper.logScreenView("BodyResultScreen")
-                        AnalyticsHelper.logBodyAnalysisResult(true, gender, bodyInput, current.result.bodyType)
+                        if (!current.restored) {
+                            AnalyticsHelper.logBodyAnalysisResult(true, gender, bodyInput, current.result.bodyType)
+                        }
                     }
                     is BodyFashionUiState.Error ->
                         AnalyticsHelper.logBodyAnalysisResult(false, gender, bodyInput)
                     else -> Unit
                 }
             }
-            // 다시 찍기: 사진을 고른 화면(카메라 또는 가이드)으로 돌아간다
+            // 다시 찍기: 사진을 고른 화면(카메라 또는 가이드)으로 돌아간다.
+            // 홈에서 지난 결과로 바로 들어왔으면 그 아래가 홈이라 가이드를 새로 연다
             val retake: () -> Unit = {
                 bodyFashionViewModel.reset()
-                navController.popBackStack()
+                val previous = navController.previousBackStackEntry?.destination?.route
+                if (previous == "body_camera" || previous == "body_guide") {
+                    navController.popBackStack()
+                } else {
+                    navController.navigate("body_guide") {
+                        popUpTo("body_result") { inclusive = true }
+                    }
+                }
             }
             val goHome: () -> Unit = {
                 bodyFashionViewModel.reset()
@@ -476,6 +495,7 @@ fun HairMeApp(
             when (val current = state) {
                 is BodyFashionUiState.Success -> BodyResultScreen(
                     result = current.result,
+                    photo = current.photo,
                     onItemClick = { fit ->
                         AnalyticsHelper.logBodyItemClick(
                             productId = fit.productId.orEmpty(),
@@ -503,7 +523,18 @@ fun HairMeApp(
                     onRetakeClick = retake,
                     onHomeClick = goHome
                 )
-                BodyFashionUiState.Loading, BodyFashionUiState.Idle -> BodyAnalyzingScreen()
+                BodyFashionUiState.Loading -> BodyAnalyzingScreen()
+                // 진행 중인 분석이 없음: 앱이 메모리 정리 후 이 화면으로 복원된 경우 등.
+                // 보관한 지난 결과를 보여주고, 없으면 이전 화면으로 돌아간다 (분석 중 표시로 멈추지 않게)
+                BodyFashionUiState.Idle -> {
+                    LaunchedEffect(Unit) {
+                        val onThisScreen = navController.currentBackStackEntry?.destination?.route == "body_result"
+                        if (onThisScreen && !bodyFashionViewModel.showLastResult()) {
+                            navController.popBackStack()
+                        }
+                    }
+                    Box(modifier = Modifier.fillMaxSize().background(Atelier.Background))
+                }
             }
         }
 

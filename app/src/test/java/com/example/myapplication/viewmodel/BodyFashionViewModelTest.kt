@@ -9,6 +9,8 @@ import com.example.myapplication.network.ProductClickRequest
 import com.example.myapplication.network.ProductClickResponse
 import com.example.myapplication.repository.ApiResult
 import com.example.myapplication.repository.HairstyleRepository
+import com.example.myapplication.util.BodyResultStore
+import com.example.myapplication.util.SavedBodyResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -37,6 +39,18 @@ class BodyFashionViewModelTest {
     private lateinit var repository: HairstyleRepository
     private lateinit var viewModel: BodyFashionViewModel
     private val uri: Uri = mockk(relaxed = true)
+    private lateinit var store: FakeStore
+
+    /** 메모리에만 보관하는 저장소 (SharedPreferences·파일 대신) */
+    private class FakeStore(var saved: SavedBodyResult? = null) : BodyResultStore {
+        var saveCount = 0
+        override fun load(): SavedBodyResult? = saved
+        override fun save(result: BodyAnalysisResponse, photo: Uri): String {
+            saveCount++
+            saved = SavedBodyResult(result, "/files/body_fashion/photo_1.jpg")
+            return "/files/body_fashion/photo_1.jpg"
+        }
+    }
 
     private val result = BodyAnalysisResponse(
         success = true,
@@ -55,8 +69,16 @@ class BodyFashionViewModelTest {
         mockkStatic(Log::class)
         every { Log.w(any(), any<String>()) } returns 0
         repository = mockk()
-        viewModel = BodyFashionViewModel(mockk(relaxed = true), repository) { "device-1" }
+        store = FakeStore()
+        viewModel = newViewModel()
     }
+
+    private fun newViewModel() = BodyFashionViewModel(
+        mockk(relaxed = true),
+        repository,
+        store = store,
+        ioDispatcher = testDispatcher
+    ) { "device-1" }
 
     @After
     fun tearDown() {
@@ -149,5 +171,49 @@ class BodyFashionViewModelTest {
         advanceUntilIdle()
 
         assertTrue(failed)
+    }
+
+    @Test
+    fun `분석 성공이면 결과와 사진 사본을 보관하고 사본 경로로 바꾼다`() = runTest(testDispatcher) {
+        coEvery { repository.analyzeBody(uri, "male", "device-1") } returns ApiResult.Success(result)
+
+        viewModel.analyze(uri)
+        advanceUntilIdle()
+
+        assertEquals(1, store.saveCount)
+        val state = viewModel.uiState.value as BodyFashionUiState.Success
+        assertEquals("/files/body_fashion/photo_1.jpg", state.photo)
+        assertEquals(false, state.restored)
+    }
+
+    @Test
+    fun `분석 실패는 보관하지 않는다`() = runTest(testDispatcher) {
+        coEvery { repository.analyzeBody(any(), any(), any()) } returns ApiResult.Error("x", 400)
+
+        viewModel.analyze(uri)
+        advanceUntilIdle()
+
+        assertEquals(0, store.saveCount)
+    }
+
+    @Test
+    fun `앱이 다시 떠도 보관한 지난 결과를 보여준다`() = runTest(testDispatcher) {
+        store.saved = SavedBodyResult(result, "/files/body_fashion/photo_9.jpg")
+        viewModel = newViewModel()  // 프로세스 재시작 = 새 ViewModel
+        assertEquals(BodyFashionUiState.Idle, viewModel.uiState.value)
+
+        assertTrue(viewModel.showLastResult())
+
+        val state = viewModel.uiState.value as BodyFashionUiState.Success
+        assertEquals("어깨 넓은형", state.result.bodyTypeLabel)
+        assertEquals("/files/body_fashion/photo_9.jpg", state.photo)
+        assertTrue(state.restored)
+        assertEquals("female", viewModel.gender.value)
+    }
+
+    @Test
+    fun `보관한 결과가 없으면 지난 결과 보기는 false 이고 상태를 바꾸지 않는다`() {
+        assertEquals(false, viewModel.showLastResult())
+        assertEquals(BodyFashionUiState.Idle, viewModel.uiState.value)
     }
 }

@@ -13,13 +13,15 @@ import com.google.gson.annotations.SerializedName
  * 구버전 서버 호환: 필드가 빠져도 크래시 없이 파싱되도록 기본값을 둔다.
  */
 
-/** 추천/피할 핏 1개 */
+/** 추천/피할 핏 1개. imageUrl 은 키워드 대표 이미지(AI 생성 예시, 실제 상품 아님) */
 @Keep
 data class BodyFit(
     val keyword: String = "",
     val reason: String = "",
     @SerializedName("product_id")
-    val productId: String? = null
+    val productId: String? = null,
+    @SerializedName("image_url")
+    val imageUrl: String? = null
 )
 
 /** 보조 체형 표시 (예: 상체 긴 비율) */

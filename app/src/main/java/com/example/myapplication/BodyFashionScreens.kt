@@ -64,6 +64,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeJoin
@@ -776,6 +778,7 @@ fun BodyErrorScreen(
 @Composable
 fun BodyResultScreen(
     result: BodyAnalysisResponse,
+    photo: Any?,
     onItemClick: (BodyFit) -> Unit,
     onRetakeClick: () -> Unit,
     onHomeClick: () -> Unit
@@ -801,13 +804,31 @@ fun BodyResultScreen(
                 .padding(horizontal = 24.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "YOUR BODY FIT",
-                style = atelierLabel(size = 11, color = Atelier.BrandVioletSoft, tracking = 0.16f)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = result.bodyTypeLabel, style = atelierSerif(size = 28))
-            Spacer(modifier = Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // 분석에 쓴 내 사진 (다시 들어와도 같은 사진이 보인다)
+                if (photo != null) {
+                    AsyncImage(
+                        model = photo,
+                        contentDescription = "분석한 사진",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .width(84.dp)
+                            .aspectRatio(3f / 4f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Atelier.Divider)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+                Column {
+                    Text(
+                        text = "YOUR BODY FIT",
+                        style = atelierLabel(size = 11, color = Atelier.BrandVioletSoft, tracking = 0.16f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = result.bodyTypeLabel, style = atelierSerif(size = 28))
+                }
+            }
+            Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = result.description,
                 fontSize = 14.sp,
@@ -889,6 +910,7 @@ private fun RecommendedFitRow(fit: BodyFit, onClick: () -> Unit) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        FitImage(fit = fit, size = 64)
         Column(modifier = Modifier.weight(1f)) {
             Text(text = fit.keyword, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Ink)
             Spacer(modifier = Modifier.height(4.dp))
@@ -917,21 +939,60 @@ private fun AvoidFitRow(fit: BodyFit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp),
-        verticalAlignment = Alignment.Top
+        verticalAlignment = if (fit.imageUrl != null) Alignment.CenterVertically else Alignment.Top
     ) {
-        Icon(
-            imageVector = Icons.Filled.Close,
-            contentDescription = null,
-            tint = BadColor,
-            modifier = Modifier
-                .padding(top = 2.dp)
-                .size(16.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+        if (fit.imageUrl != null) {
+            // 피할 핏 이미지는 흐리게 + X 표시 (추천 이미지와 헷갈리지 않게)
+            Box {
+                FitImage(fit = fit, size = 52, dimmed = true)
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Atelier.Surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = null,
+                        tint = BadColor,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
+        } else {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = null,
+                tint = BadColor,
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+        }
         Column {
             Text(text = fit.keyword, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Ink)
             Spacer(modifier = Modifier.height(4.dp))
             Text(text = fit.reason, fontSize = 13.sp, lineHeight = 19.sp, color = Atelier.TextSecondary)
         }
     }
+}
+
+/** 핏 키워드 대표 이미지 (AI 생성 예시). 이미지가 없는 항목은 아무것도 그리지 않는다 */
+@Composable
+private fun FitImage(fit: BodyFit, size: Int, dimmed: Boolean = false) {
+    val url = fit.imageUrl ?: return
+    AsyncImage(
+        model = url,
+        contentDescription = fit.keyword,
+        contentScale = ContentScale.Crop,
+        alpha = if (dimmed) 0.55f else 1f,
+        modifier = Modifier
+            .size(size.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Atelier.Divider)
+    )
+    Spacer(modifier = Modifier.width(14.dp))
 }
