@@ -139,10 +139,9 @@ private enum class GuideFigure(
     val label: String
 ) {
     Good(floatArrayOf(0f, 0f, 100f, 200f), "좋은 예: 정면 전신"),
-    FeetCut(floatArrayOf(0f, 0f, 100f, 140f), "나쁜 예: 발이 잘린 사진"),
     Side(floatArrayOf(0f, 0f, 100f, 200f), "나쁜 예: 옆으로 선 사진"),
     Oversize(floatArrayOf(0f, 0f, 100f, 200f), "나쁜 예: 오버핏 옷으로 체형이 가려진 사진"),
-    TooClose(floatArrayOf(22f, 4f, 56f, 70f), "나쁜 예: 너무 가까워 상반신만 나온 사진")
+    TooClose(floatArrayOf(22f, 4f, 56f, 70f), "나쁜 예: 너무 가까워 허리 위만 나온 사진")
 }
 
 /** viewBox 좌표계를 캔버스 가운데에 맞춰 그린다 */
@@ -179,7 +178,7 @@ private fun GuideIllustration(figure: GuideFigure, modifier: Modifier = Modifier
             drawCircle(FigureFill, radius = 11f, center = Offset(50f, 22f))
             drawCircle(FigureStroke, radius = 11f, center = Offset(50f, 22f), style = stroke)
             when (figure) {
-                GuideFigure.Good, GuideFigure.FeetCut, GuideFigure.TooClose -> figurePath(body)
+                GuideFigure.Good, GuideFigure.TooClose -> figurePath(body)
                 GuideFigure.Side -> {
                     figurePath(side)
                     drawPath(sideArm, FigureStroke, style = stroke)
@@ -245,14 +244,11 @@ fun BodyGuideScreen(
                 color = Atelier.Ink
             )
             Spacer(modifier = Modifier.height(12.dp))
+            // 발이 조금 잘린 사진은 받는다 (서버는 어깨·골반만 필수). 허리 위만 나오면 다시 찍어야 한다
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                BadExampleCard(GuideFigure.FeetCut, "발이 잘렸어요", Modifier.weight(1f))
-                BadExampleCard(GuideFigure.Side, "옆으로 섰어요", Modifier.weight(1f))
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                BadExampleCard(GuideFigure.Oversize, "오버핏이라 체형이 가려져요", Modifier.weight(1f))
                 BadExampleCard(GuideFigure.TooClose, "너무 가까워요", Modifier.weight(1f))
+                BadExampleCard(GuideFigure.Side, "옆으로 섰어요", Modifier.weight(1f))
+                BadExampleCard(GuideFigure.Oversize, "오버핏이라 체형이 가려져요", Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -308,7 +304,7 @@ private fun GoodExampleCard() {
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "2~3m 거리에서 머리부터 발끝까지, 팔은 몸에서 살짝 떼고 찍어요.",
+                    text = "머리부터 발끝까지 나오면 가장 정확해요. 발이 조금 잘려도 허리 아래까지 나오면 괜찮아요.",
                     fontSize = 13.sp,
                     lineHeight = 20.sp,
                     color = Atelier.TextSecondary
@@ -910,7 +906,10 @@ private fun RecommendedFitRow(fit: BodyFit, onClick: () -> Unit) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        FitImage(fit = fit, size = 64)
+        if (fit.imageUrl != null) {
+            FitImage(fit = fit, size = 64)
+            Spacer(modifier = Modifier.width(14.dp))
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(text = fit.keyword, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Ink)
             Spacer(modifier = Modifier.height(4.dp))
@@ -961,6 +960,7 @@ private fun AvoidFitRow(fit: BodyFit) {
                     )
                 }
             }
+            Spacer(modifier = Modifier.width(14.dp))
         } else {
             Icon(
                 imageVector = Icons.Filled.Close,
@@ -980,7 +980,7 @@ private fun AvoidFitRow(fit: BodyFit) {
     }
 }
 
-/** 핏 키워드 대표 이미지 (AI 생성 예시). 이미지가 없는 항목은 아무것도 그리지 않는다 */
+/** 핏 키워드 대표 이미지 (AI 생성 예시). 이미지가 없는 항목은 아무것도 그리지 않는다 (간격은 호출 쪽에서) */
 @Composable
 private fun FitImage(fit: BodyFit, size: Int, dimmed: Boolean = false) {
     val url = fit.imageUrl ?: return
@@ -994,5 +994,4 @@ private fun FitImage(fit: BodyFit, size: Int, dimmed: Boolean = false) {
             .clip(RoundedCornerShape(8.dp))
             .background(Atelier.Divider)
     )
-    Spacer(modifier = Modifier.width(14.dp))
 }
