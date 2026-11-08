@@ -35,8 +35,8 @@ android {
         applicationId = "com.hairme.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 98
-        versionName = "5.16.1"
+        versionCode = 99
+        versionName = "5.16.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -161,7 +161,7 @@ dependencies {
     // ================================
     // CameraX (체형 코디 촬영: 점선 실루엣 + 3초 타이머)
     // ================================
-    val cameraxVersion = "1.3.4"
+    val cameraxVersion = "1.4.2"
     implementation("androidx.camera:camera-core:$cameraxVersion")
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
