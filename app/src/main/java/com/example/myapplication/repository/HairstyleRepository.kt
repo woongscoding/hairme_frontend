@@ -13,6 +13,8 @@ import com.example.myapplication.network.HairstyleApiService
 import com.example.myapplication.network.ProductClickRequest
 import com.example.myapplication.network.ProductClickResponse
 import com.example.myapplication.network.RecommendedProduct
+import com.example.myapplication.network.StyleActionRequest
+import com.example.myapplication.StyleRecContext
 import com.example.myapplication.network.SynthesisQuota
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -47,7 +49,9 @@ data class SynthesisResult(
     // 과금 결과 (회원 잔액 / 비회원 남은 횟수). 캐시 적중이면 null
     val quota: SynthesisQuota? = null,
     // 무료 미리보기(512px + 워터마크)면 true → 결과 화면에 "고화질로 보기" CTA
-    val isPreview: Boolean = false
+    val isPreview: Boolean = false,
+    // 서버 결과 식별자 (스타일 저장/공유 신호용). 구버전 서버는 null
+    val resultId: String? = null
 )
 
 /**
@@ -414,13 +418,15 @@ class HairstyleRepository(
      * @param imageUri 사용자 얼굴 사진 URI
      * @param hairstyleName 적용할 헤어스타일 이름 (예: 투블럭컷)
      * @param gender 성별 (male/female)
+     * @param rec 추천 카드에서 들어온 합성이면 추천 맥락 (analysis_id/rec_rank/hairstyle_id 전송), 아니면 null
      * @return 합성된 이미지 + 스타일 맞춤 제휴 제품(SynthesisResult) 또는 에러
      */
     suspend fun synthesizeHairstyle(
         imageUri: Uri,
         hairstyleName: String,
         gender: String = "male",
-        deviceId: String
+        deviceId: String,
+        rec: StyleRecContext? = null
     ): ApiResult<SynthesisResult> = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "🎨 헤어스타일 합성 시작")
@@ -442,10 +448,17 @@ class HairstyleRepository(
             val hairstyleNamePart = MultipartBody.Part.createFormData("hairstyle_name", hairstyleName)
             val genderPart = MultipartBody.Part.createFormData("gender", gender)
             val deviceIdPart = MultipartBody.Part.createFormData("device_id", deviceId)
+            // 추천 맥락 (선택): 값이 없으면 null → 파트 생략
+            val analysisIdPart = rec?.analysisId?.let { MultipartBody.Part.createFormData("analysis_id", it) }
+            val recRankPart = rec?.recRank?.let { MultipartBody.Part.createFormData("rec_rank", it.toString()) }
+            val hairstyleIdPart = rec?.hairstyleId?.let { MultipartBody.Part.createFormData("hairstyle_id", it.toString()) }
 
             // 3. API 호출
-            Log.d(TAG, "🌐 합성 API 호출 시작...")
-            val response = apiService.synthesizeHairstyle(filePart, hairstyleNamePart, genderPart, deviceIdPart)
+            Log.d(TAG, "🌐 합성 API 호출 시작... (analysis_id=${rec?.analysisId}, rec_rank=${rec?.recRank})")
+            val response = apiService.synthesizeHairstyle(
+                filePart, hairstyleNamePart, genderPart, deviceIdPart,
+                analysisIdPart, recRankPart, hairstyleIdPart
+            )
             Log.d(TAG, "📡 서버 응답 수신 - HTTP ${response.code()}")
 
             // 4. 임시 파일 삭제
@@ -493,7 +506,8 @@ class HairstyleRepository(
                             recommendedProducts = synthesisResponse.recommendedProducts.orEmpty(),
                             disclosure = synthesisResponse.disclosure,
                             quota = synthesisResponse.quota,
-                            isPreview = synthesisResponse.isPreview == true
+                            isPreview = synthesisResponse.isPreview == true,
+                            resultId = synthesisResponse.resultId
                         )
                     )
                 } catch (e: Exception) {
@@ -519,6 +533,31 @@ class HairstyleRepository(
             Log.e(TAG, "❌ 예외 발생: ${e.message}", e)
             val networkError = e.toNetworkError()
             ApiResult.Error(networkError.toUserFriendlyMessage())
+        }
+    }
+
+    /**
+     * 추천 스타일 합성 결과의 저장/공유 신호 전송 (fire-and-forget).
+     *
+     * 재학습용 부가 신호라 실패해도 사용자에게 알리지 않는다: 예외는 삼키고 로그만 남긴다.
+     * 구버전 서버(404)도 같은 이유로 조용히 무시한다.
+     */
+    suspend fun sendStyleAction(request: StyleActionRequest) {
+        withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.sendStyleAction(request)
+                response.body()?.close()
+                response.errorBody()?.close()
+                if (response.isSuccessful) {
+                    Log.d(TAG, "📨 style-action 전송: ${request.action} / ${request.styleName}")
+                } else {
+                    Log.w(TAG, "style-action 전송 실패 (${response.code()}) - 무시")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "style-action 전송 예외 - 무시: ${e.message}")
+            }
         }
     }
 

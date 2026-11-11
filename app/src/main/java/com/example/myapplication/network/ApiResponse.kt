@@ -104,7 +104,8 @@ data class Recommendation(
     val score: Double? = null,  // ✅ v23: ML 예측 점수
     val image_search_url: String? = null,  // ✅ v20: 네이버 이미지 검색 URL (더 이상 UI에서 사용 안 함)
     val source: String = "ml",  // ✅ v35: 추천 소스 ("ml" 또는 "trend")
-    val image_url: String? = null  // ✅ v36: AI 예시 이미지 절대 URL (WebP 3:4, 매핑 없으면 null)
+    val image_url: String? = null,  // ✅ v36: AI 예시 이미지 절대 URL (WebP 3:4, 매핑 없으면 null)
+    val rank: Int? = null  // 서버 순위 (ML 1~3, 트렌드 4~). 구버전 서버는 null
 ) {
     /**
      * 앱의 HairstyleRecommendation으로 변환
@@ -119,7 +120,8 @@ data class Recommendation(
             reason = reason,
             imageSearchUrl = image_search_url,  // ✅ v27: 네이버 검색 URL (성별 접두사 포함)
             source = source,  // ✅ v35: 추천 소스 전달
-            imageUrl = image_url  // ✅ v36: AI 예시 이미지 URL 전달
+            imageUrl = image_url,  // ✅ v36: AI 예시 이미지 URL 전달
+            rank = rank
         )
     }
 }
@@ -164,7 +166,31 @@ data class SynthesisResponse(
     val quota: SynthesisQuota? = null,
     // 무료 미리보기(512px + 워터마크) 결과인지. 구버전 서버는 필드가 없다(null = 일반 결과)
     @SerializedName("is_preview")
-    val isPreview: Boolean? = null
+    val isPreview: Boolean? = null,
+    // 결과 식별자 (서버 cache_key 앞 16자, 신고·스타일 행동 신호용). 구버전 서버는 null
+    @SerializedName("result_id")
+    val resultId: String? = null
+)
+
+/**
+ * POST /api/events/style-action 요청 바디 (추천 스타일 합성 결과의 저장/공유 신호)
+ *
+ * Gson 기본 설정은 null 필드를 생략한다 → 서버에서는 선택 필드로 처리된다.
+ */
+@Keep
+data class StyleActionRequest(
+    @SerializedName("analysis_id")
+    val analysisId: String,
+    @SerializedName("style_name")
+    val styleName: String,
+    @SerializedName("hairstyle_id")
+    val hairstyleId: Int? = null,
+    /** "save" | "share" */
+    val action: String,
+    @SerializedName("result_id")
+    val resultId: String? = null,
+    @SerializedName("device_id")
+    val deviceId: String? = null
 )
 
 /** 합성 응답의 quota 블록 */

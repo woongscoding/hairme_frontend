@@ -92,7 +92,8 @@ fun ResultScreen(
     onSalonIntentAnswered: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
     onFindSalonClick: ((String) -> Unit)? = null, // ✅ v21: 미용실 찾기 콜백
-    onSynthesizeClick: ((String) -> Unit)? = null, // ✅ v30: 헤어스타일 합성 콜백
+    // ✅ v30: 헤어스타일 합성 콜백 (추천 카드, 카드 순위). 순위 = 서버 rank, 없으면 화면 순서(1-based)
+    onSynthesizeClick: ((HairstyleRecommendation, Int) -> Unit)? = null,
     onSynthesizeHairColor: ((String, String) -> Unit)? = null // ✅ v34: 염색색 합성 콜백 (colorName, colorHex)
 ) {
     Scaffold(
@@ -238,7 +239,7 @@ private fun RecommendationSection(
     analysisId: String? = null,
     gender: String = "male",
     quotaLabel: String = "",
-    onSynthesizeClick: ((String) -> Unit)? = null
+    onSynthesizeClick: ((HairstyleRecommendation, Int) -> Unit)? = null
 ) {
     // ✅ v35: ML 추천과 트렌드 스타일 분리
     val mlStyles = styles.filter { it.source == "ml" }
@@ -583,7 +584,7 @@ private fun HeroRecommendationCard(
     analysisId: String?,
     styleIndex: Int,
     gender: String,
-    onSynthesizeClick: ((String) -> Unit)?,
+    onSynthesizeClick: ((HairstyleRecommendation, Int) -> Unit)?,
     onImageClick: (HairstyleRecommendation, String, Int) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
@@ -637,7 +638,7 @@ private fun HeroRecommendationCard(
                     onSynthesizeClick?.let { callback ->
                         SynthesizePillButton(
                             styleName = style.name,
-                            onSynthesizeClick = callback,
+                            onSynthesizeClick = { callback(style, style.rank ?: (styleIndex + 1)) },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -676,7 +677,7 @@ private fun CompactRecommendationCard(
     analysisId: String?,
     styleIndex: Int,
     gender: String,
-    onSynthesizeClick: ((String) -> Unit)?,
+    onSynthesizeClick: ((HairstyleRecommendation, Int) -> Unit)?,
     onImageClick: (HairstyleRecommendation, String, Int) -> Unit = { _, _, _ -> },
     isTrend: Boolean = false
 ) {
@@ -755,7 +756,7 @@ private fun CompactRecommendationCard(
                     onSynthesizeClick?.let { callback ->
                         SynthesizePillButton(
                             styleName = style.name,
-                            onSynthesizeClick = callback,
+                            onSynthesizeClick = { callback(style, style.rank ?: (styleIndex + 1)) },
                             modifier = Modifier.weight(1f),
                             height = 40.dp
                         )

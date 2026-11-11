@@ -730,11 +730,20 @@ fun HairMeApp(
                         AnalyticsHelper.logFindSalonFromResult()
                         navController.navigate("salon_list/$styleName")
                     },
-                    onSynthesizeClick = { styleName ->
+                    onSynthesizeClick = { style, recRank ->
                         // ✅ v30: 헤어스타일 합성 시작
+                        val styleName = style.name
                         AnalyticsHelper.logSynthesizeHairstyle(styleName)
-                        Log.d(TAG, "🎨 헤어스타일 합성 요청: $styleName")
-                        viewModel.synthesizeHairstyle(styleName)
+                        Log.d(TAG, "🎨 헤어스타일 합성 요청: $styleName (rank=$recRank)")
+                        // 추천 맥락: analysis_id가 있을 때만 (서버 재학습용 합성/저장/공유 신호)
+                        val rec = it.analysisId?.let { analysisId ->
+                            StyleRecContext(
+                                analysisId = analysisId,
+                                recRank = recRank,
+                                hairstyleId = style.id
+                            )
+                        }
+                        viewModel.synthesizeHairstyle(styleName, rec)
                     },
                     onSynthesizeHairColor = { colorName, colorHex ->
                         // ✅ v34: 염색색 합성 시작
@@ -766,10 +775,13 @@ fun HairMeApp(
                             isPreview = state.isPreview,
                             onHdUpgrade = {
                                 AnalyticsHelper.logHdUpgradeClick("ai_hairstyle", memberCredits != null)
-                                viewModel.requestHdUpgrade(PendingSynthesis.Style(state.hairstyleName), memberCredits)
+                                viewModel.requestHdUpgrade(PendingSynthesis.Style(state.hairstyleName, state.rec), memberCredits)
                             },
                             onDismiss = { viewModel.resetSynthesisState() },
                             onTryAnother = { viewModel.resetSynthesisState() },
+                            // 추천 스타일 저장/공유 신호 (추천 밖 진입이면 VM이 무시)
+                            onSaved = { viewModel.reportStyleAction(state, "save") },
+                            onShared = { viewModel.reportStyleAction(state, "share") },
                             // 제휴 제품 추천
                             recommendedProducts = state.recommendedProducts,
                             disclosure = state.disclosure,
