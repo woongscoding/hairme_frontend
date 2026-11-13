@@ -35,6 +35,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.util.RewardedAdManager
+import com.example.myapplication.ui.screens.AnalysisChoiceScreen
 import com.example.myapplication.ui.screens.HomeScreen
 import com.example.myapplication.PhotoSelectionScreen
 import com.example.myapplication.PhotoConfirmScreen
@@ -372,11 +373,8 @@ fun HairMeApp(
             }
             HomeScreen(
                 quotaLabel = quotaLabel(authUiState, usageState),
-                onStartClick = {
-                    AnalyticsHelper.logStartAnalysis()
-                    viewModel.resetState() // 분석 상태 초기화
-                    navController.navigate("photo_selection")
-                },
+                // 분석 진입은 하나. 헤어/체형은 다음 화면에서 고른다
+                onStartClick = { navController.navigate("analysis_choice") },
                 onFindSalonClick = {
                     AnalyticsHelper.logFindSalonFromHome()
                     navController.navigate("salon_list/주변 미용실")
@@ -415,8 +413,27 @@ fun HairMeApp(
                     }
                 },
                 isWaitingReward = isWaitingReward,
-                showRewardedCredit = !usageState.isTreatment && !hasPurchased,
-                onBodyFashionClick = {
+                showRewardedCredit = !usageState.isTreatment && !hasPurchased
+            )
+        }
+
+        // ✅ 분석 선택: 헤어(얼굴 사진) / 체형별 아이템(전신 사진)
+        composable("analysis_choice") {
+            LaunchedEffect(Unit) {
+                AnalyticsHelper.logScreenView("AnalysisChoiceScreen")
+                AnalyticsHelper.logAnalysisChoiceView()
+            }
+            AnalysisChoiceScreen(
+                onBackClick = { navController.popBackStack() },
+                onHairClick = {
+                    AnalyticsHelper.logAnalysisChoiceSelect("hair")
+                    // start_analysis 는 헤어 퍼널 시작점 - 홈 개편 전후 비교를 위해 의미를 유지
+                    AnalyticsHelper.logStartAnalysis()
+                    viewModel.resetState() // 분석 상태 초기화
+                    navController.navigate("photo_selection")
+                },
+                onBodyClick = {
+                    AnalyticsHelper.logAnalysisChoiceSelect("body")
                     AnalyticsHelper.logBodyFashionStart()
                     if (bodyFashionViewModel.showLastResult()) {
                         navController.navigate("body_result")

@@ -7,7 +7,7 @@
     <!-- HomeScreen -->
     <string name="home_app_title">HairMe</string>
     <string name="home_main_description">오늘의 나에게\n어울리는 스타일</string>
-    <string name="home_sub_description">얼굴형과 퍼스널컬러를 읽어\n가장 잘 어울리는 헤어를 제안합니다</string>
+    <string name="home_sub_description">얼굴형·퍼스널컬러로 어울리는 헤어를,\n체형으로 어울리는 핏을 제안합니다</string>
     <string name="home_start_button">분석 시작</string>
 
     <!-- PhotoSelectionScreen -->

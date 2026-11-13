@@ -1,7 +1,6 @@
 package com.example.myapplication.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -11,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChatBubble
-import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FaceRetouchingNatural
 import androidx.compose.material.icons.filled.History
@@ -72,9 +70,7 @@ fun HomeScreen(
     onWatchAdClick: () -> Unit = {},
     isWaitingReward: Boolean = false,
     // 대조군 회원에게만 "광고 보고 크레딧 받기" (실험군은 크레딧 지급 없음, 유료 사용자는 광고 없음)
-    showRewardedCredit: Boolean = true,
-    // 체형별 아이템 추천 (헤어 분석과 별도 기능). null 이면 카드를 숨긴다
-    onBodyFashionClick: (() -> Unit)? = null
+    showRewardedCredit: Boolean = true
 ) {
     Column(
         modifier = modifier
@@ -99,14 +95,10 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
+            // 분석 진입은 이 카드 하나. 헤어/체형 선택은 다음 화면(AnalysisChoiceScreen)
             MainCtaCard(onStartClick = onStartClick)
 
             Spacer(modifier = Modifier.height(14.dp))
-
-            onBodyFashionClick?.let {
-                BodyFashionCard(onClick = it)
-                Spacer(modifier = Modifier.height(14.dp))
-            }
 
             QuickEntryGrid(
                 quotaLabel = quotaLabel,
@@ -219,8 +211,14 @@ private fun MainCtaCard(onStartClick: () -> Unit) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "얼굴형 분석",
+                        text = "AI 스타일 분석",
                         style = atelierSerif(size = 22)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "헤어스타일 · 체형별 아이템",
+                        fontSize = 13.sp,
+                        color = Atelier.TextSecondary
                     )
                 }
                 Icon(
@@ -236,7 +234,7 @@ private fun MainCtaCard(onStartClick: () -> Unit) {
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "약 5초 · 사진 한 장이면 충분해요",
+                text = "사진 한 장이면 충분해요 · 다음 화면에서 선택",
                 fontSize = 13.sp,
                 color = Atelier.TextSecondary
             )
@@ -258,63 +256,6 @@ private fun MainCtaCard(onStartClick: () -> Unit) {
             )
         }
     }
-}
-
-/** 체형별 아이템 추천 진입 카드 (얼굴형 분석과 별도 버튼) */
-@Composable
-private fun BodyFashionCard(onClick: () -> Unit) {
-    AtelierCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "BODY FIT",
-                        style = atelierLabel(size = 11, color = Atelier.BrandVioletSoft, tracking = 0.16f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    NewBadge()
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "체형별 아이템 추천",
-                    style = atelierSerif(size = 20)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "사진 한 장으로 어울리는 핏 찾기 · 무료",
-                    fontSize = 13.sp,
-                    color = Atelier.TextSecondary
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Icon(
-                imageVector = Icons.Default.Checkroom,
-                contentDescription = null,
-                tint = Atelier.BrandViolet,
-                modifier = Modifier.size(26.dp)
-            )
-        }
-    }
-}
-
-/** 새 기능 표시 (결과 화면 TREND 배지와 같은 모양, 보라 포인트) */
-@Composable
-private fun NewBadge() {
-    Text(
-        text = "NEW",
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.sp,
-        color = Atelier.BrandViolet,
-        modifier = Modifier
-            .border(1.dp, Atelier.BrandVioletSoft, Atelier.PillShape)
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-    )
 }
 
 /**

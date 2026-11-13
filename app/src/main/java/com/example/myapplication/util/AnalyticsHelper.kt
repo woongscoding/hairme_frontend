@@ -390,9 +390,25 @@ object AnalyticsHelper {
     // 체형별 아이템 추천 (헤어 분석과 별도 기능)
     // ================================
 
-    /** 홈에서 "체형별 아이템 추천" 진입 */
+    /** 분석 선택 화면에서 "체형별 아이템 추천" 진입 */
     fun logBodyFashionStart() {
         firebaseAnalytics?.logEvent("body_fashion_start", null)
+    }
+
+    // ================================
+    // 분석 선택 화면 (홈 "분석 시작" → 헤어 / 체형)
+    // ================================
+
+    /** 분석 선택 화면 노출. 선택 없이 나간 비율 = 1 - select / view */
+    fun logAnalysisChoiceView() {
+        firebaseAnalytics?.logEvent("analysis_choice_view", null)
+    }
+
+    /** @param type "hair" | "body" */
+    fun logAnalysisChoiceSelect(type: String) {
+        firebaseAnalytics?.logEvent("analysis_choice_select", Bundle().apply {
+            putString("type", type)
+        })
     }
 
     /**
